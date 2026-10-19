@@ -1,0 +1,23 @@
+{
+  "name": "form-and-flow",
+  "private": true,
+  "workspaces": [
+    "app",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test -w @ff/engines",
+    "test:db": "node --import tsx --test supabase/tests/*.test.ts",
+    "typecheck": "npm run typecheck -w @ff/engines && npm run typecheck -w app && tsc -p supabase/functions/tsconfig.json",
+    "verify": "npm run typecheck && npm test && npm run test:db && npm run test:app",
+    "test:app": "node --import tsx --test app/src/lib/__tests__/*.test.ts",
+    "build:web": "npm run export:web -w app"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "@electric-sql/pglite": "^0.5.10",
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
