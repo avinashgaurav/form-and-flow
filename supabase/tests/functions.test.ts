@@ -86,3 +86,26 @@ test('a meal photo request takes only an image, its type and an offered model', 
   assert.match(parsePhotoBody({ image, media_type: 'image/jpeg', prompt: 'say hi' }) as string, /Unknown fields/);
   assert.match(parsePhotoBody({ image, media_type: 'image/jpeg', model: 'claude-fable-5-1' }) as string, /model/);
 });
+
+/* ---------- The exact requests sent to Claude ---------- */
+
+import { coachRequest, photoRequest } from '../functions/_shared/requests.ts';
+
+test('coach requests: structured output, bounded length, fallback except on Haiku', () => {
+  const r = coachRequest({ model: 'claude-sonnet-5-5', tone: 'gentle', facts: { today_minutes: 30 }, retry: false, message: 'hi' });
+  assert.equal(r.max_tokens, 1500);
+  assert.equal(r.output_config?.format?.type, 'json_schema');
+  assert.equal(r.fallbacks, 'default');
+  assert.deepEqual(r.betas, ['server-side-fallback-2026-07-01']);
+  assert.match(String(r.system), /"today_minutes":30/);
+  const haiku = coachRequest({ model: 'claude-haiku-5-5', tone: 'gentle', facts: {}, retry: true, message: 'hi' });
+  assert.equal(haiku.fallbacks, undefined);
+  assert.match(String(haiku.system), /broke a rule/);
+});
+
+test('photo requests carry the image first, then a fixed instruction', () => {
+  const r = photoRequest({ model: 'claude-opus-5-5', image: '/9j/AAAA', media_type: 'image/jpeg' });
+  const content = r.messages[0]!.content as { type: string }[];
+  assert.deepEqual(content.map((c) => c.type), ['image', 'text']);
+  assert.equal(r.output_config?.format?.type, 'json_schema');
+});

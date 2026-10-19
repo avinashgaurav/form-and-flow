@@ -11,6 +11,8 @@ export interface WeightEntry {
   at: string;
   /** Logical day (YYYY-MM-DD). */
   day: string;
+  /** Set on every edit; when two phones disagree, the newest edit wins. */
+  updatedAt?: string;
 }
 
 export interface WeightPoint {

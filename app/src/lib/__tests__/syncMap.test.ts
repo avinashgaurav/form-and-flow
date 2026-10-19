@@ -248,3 +248,14 @@ test('weigh-ins back up with their own IDs, edits update them, and deleted ones 
   assert.ok(!afterDelete.some((w) => w.id === 'w2'));
   assert.equal(merged.find((w) => w.id === 'w3')!.day, '2026-10-19', 'a 00:30 India-time weigh-in belongs to the evening before (04:00 day rule)');
 });
+
+test('when two phones edit the same weigh-in, the newest edit wins on both', () => {
+  const s = base();
+  s.weights = [{ id: 'w1', kg: 80.2, at: '2026-10-18T02:00:00.000Z', day: '2026-10-18', updatedAt: '2026-10-18T09:00:00.000Z' }];
+  const newer = mergeWeights(s, [{ client_op_id: 'w1', value: 79.8, measured_at: '2026-10-18T02:00:00.000Z', updated_at: '2026-10-18T10:00:00+05:30' }]);
+  assert.equal(newer[0]!.kg, 80.2, '10:00 in India is 04:30Z, older than the phone’s 09:00Z edit');
+  const newest = mergeWeights(s, [{ client_op_id: 'w1', value: 79.8, measured_at: '2026-10-18T02:00:00.000Z', updated_at: '2026-10-18T11:00:00.000Z' }]);
+  assert.equal(newest[0]!.kg, 79.8);
+  assert.equal(newest.length, 1);
+  assert.equal((buildPush(s, U).weights[0] as { updated_at: string }).updated_at, '2026-10-18T09:00:00.000Z');
+});

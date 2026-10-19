@@ -23,7 +23,17 @@ supabase functions deploy privacy
 
 Each user picks the coach model in Settings: Fast (`claude-haiku-5-5`), Balanced (`claude-sonnet-5-5`) or Most capable (`claude-opus-5-5`). `COACH_MODEL` is optional and only sets the default for users who have not picked; without it the default is `claude-opus-5-5`. The plan's cost model (plan/06) assumed `claude-sonnet-5-5`. `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are provided to functions automatically.
 
-## 4. Retention job
+## 4. Check the AI before you rely on it
+
+From the repo root, with your API key exported in your own terminal:
+
+```
+npm run ai:smoke -- --photo ~/Pictures/thali.jpg
+```
+
+It sends the same requests the functions send and runs the replies through the phone's checks: coach replies must use only the app's numbers, and photo foods are matched and counted by the app. Expect a few cents per run.
+
+## 5. Retention job
 
 Enable the `pg_cron` extension, then run once in the SQL editor:
 
@@ -31,7 +41,7 @@ Enable the `pg_cron` extension, then run once in the SQL editor:
 select cron.schedule('purge-expired', '15 3 * * *', 'select purge_expired()');
 ```
 
-## 5. App
+## 6. App
 
 Copy `app/.env.example` to `app/.env` and fill in the project URL and anon (publishable) key. Restart Expo.
 

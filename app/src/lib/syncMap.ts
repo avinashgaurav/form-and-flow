@@ -230,7 +230,7 @@ export function buildPush(state: AppState, userId: string): PushRows {
       .map((m) => ({ user_id: userId, client_op_id: m.id, name: m.name, items: m.items, created_at: m.at, updated_at: m.at })),
     weights: state.weights
       .filter((w) => !isTombstoned(state, 'progress_entries', w.id))
-      .map((w) => ({ user_id: userId, metric: 'weight_kg', value: w.kg, measured_at: w.at, tz, source: 'manual', client_op_id: w.id })),
+      .map((w) => ({ user_id: userId, metric: 'weight_kg', value: w.kg, measured_at: w.at, tz, source: 'manual', client_op_id: w.id, updated_at: w.updatedAt ?? w.at })),
     deletes: tombstones(state),
     cursor: { consentAt: consentNew ? c!.at : state.sync.consentAt, readinessAt: readinessNew ? r!.at : state.sync.readinessAt },
   };
@@ -467,19 +467,31 @@ export interface ServerWeight {
   measured_at: string;
   /** The zone the weigh-in was made in; its logical day is computed there. */
   tz?: string;
+  updated_at?: string;
 }
 
-/** Weigh-ins only in the backup are added; the phone keeps its own and anything it deleted stays gone. */
+/**
+ * Merge weigh-ins from the backup. New ones are added; for one on both sides the newest edit wins;
+ * anything this phone deleted stays gone.
+ */
 export function mergeWeights(state: AppState, rows: ServerWeight[]): WeightEntry[] {
-  const have = new Set(state.weights.map((w) => w.id));
   const tz = state.profile?.timezone ?? 'Asia/Kolkata';
-  const added = rows
-    .filter((r) => !have.has(r.client_op_id) && !isTombstoned(state, 'progress_entries', r.client_op_id))
-    .map((r) => {
-      const at = new Date(r.measured_at);
-      return { id: r.client_op_id, kg: Number(r.value), at: at.toISOString(), day: logicalDay(at, r.tz ?? tz) };
-    });
-  return [...state.weights, ...added];
+  const edited = (w: { updatedAt?: string; at: string }) => Date.parse(w.updatedAt ?? w.at);
+  const byId = new Map(state.weights.map((w) => [w.id, w]));
+  for (const r of rows) {
+    if (isTombstoned(state, 'progress_entries', r.client_op_id)) continue;
+    const at = new Date(r.measured_at);
+    const incoming: WeightEntry = {
+      id: r.client_op_id,
+      kg: Number(r.value),
+      at: at.toISOString(),
+      day: logicalDay(at, r.tz ?? tz),
+      updatedAt: new Date(r.updated_at ?? r.measured_at).toISOString(),
+    };
+    const local = byId.get(r.client_op_id);
+    if (!local || edited(incoming) > edited(local)) byId.set(r.client_op_id, local ? { ...local, kg: incoming.kg, updatedAt: incoming.updatedAt } : incoming);
+  }
+  return [...byId.values()];
 }
 
 /** Everything a restore pulls, in one value the store's reducer can merge against its current state. */

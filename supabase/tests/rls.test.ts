@@ -248,3 +248,22 @@ test('a meal can be logged from a photo, and unknown sources are still refused',
   await asUser(A, (tx) => tx.query(`insert into meal_logs (user_id, eaten_at, day, tz, meal_type, source, client_op_id) values ($1, now(), '2026-10-19', 'Asia/Kolkata', 'dinner', 'photo', gen_random_uuid())`, [A]));
   await rejects(asUser(A, (tx) => tx.query(`insert into meal_logs (user_id, eaten_at, day, tz, meal_type, source, client_op_id) values ($1, now(), '2026-10-19', 'Asia/Kolkata', 'dinner', 'guess', gen_random_uuid())`, [A])), /check constraint/);
 });
+
+test('a stale weigh-in edit from another phone cannot overwrite a newer one', async () => {
+  const op = '22222222-2222-4222-8222-222222222222';
+  const upsert = (value: number, updated: string) =>
+    asUser(A, (tx) =>
+      tx.query(
+        `insert into progress_entries (user_id, metric, value, measured_at, tz, client_op_id, updated_at)
+         values ($1, 'weight_kg', $2, '2026-10-19T02:00:00Z', 'Asia/Kolkata', $3, $4)
+         on conflict (user_id, client_op_id) do update set value = excluded.value, updated_at = excluded.updated_at`,
+        [A, value, op, updated],
+      ),
+    );
+  const read = async () => Number((await asUser(A, (tx) => tx.query<{ value: string }>(`select value from progress_entries where client_op_id = $1`, [op]))).rows[0]!.value);
+  await upsert(80, '2026-10-19T10:00:00Z');
+  await upsert(79, '2026-10-19T12:00:00Z');
+  assert.equal(await read(), 79, 'newer edit applies');
+  await upsert(81, '2026-10-19T11:00:00Z');
+  assert.equal(await read(), 79, 'older edit is ignored');
+});

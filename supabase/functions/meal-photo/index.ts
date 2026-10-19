@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { DEFAULT_COACH_MODEL, isCoachModel } from '../_shared/coach-prompt.ts';
 import { CORS, fail, json, requireUser, serviceClient } from '../_shared/http.ts';
-import { PHOTO_OUTPUT_SCHEMA, PHOTO_PROMPT_VERSION, PHOTO_SYSTEM, toPhotoOutput } from '../_shared/photo-prompt.ts';
+import { PHOTO_PROMPT_VERSION, toPhotoOutput } from '../_shared/photo-prompt.ts';
+import { photoRequest } from '../_shared/requests.ts';
 import { startRun } from '../_shared/run.ts';
 import { PHOTO_MAX_BASE64, parsePhotoBody } from '../_shared/validate.ts';
 
@@ -45,22 +46,7 @@ Deno.serve(async (req) => {
 
   let response: Anthropic.Beta.BetaMessage;
   try {
-    response = await anthropic.beta.messages.create({
-      model,
-      max_tokens: 1500,
-      ...(model === 'claude-haiku-5-5' ? {} : { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: PHOTO_OUTPUT_SCHEMA } },
-      system: PHOTO_SYSTEM,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: body.media_type, data: body.image } },
-            { type: 'text', text: 'List the foods in this meal photo.' },
-          ],
-        },
-      ],
-    });
+    response = await anthropic.beta.messages.create(photoRequest({ model, image: body.image, media_type: body.media_type }));
   } catch (e) {
     const reason = e instanceof Anthropic.RateLimitError ? 'provider_rate_limited' : e instanceof Anthropic.APIError ? `provider_error_${e.status ?? 'unknown'}` : 'provider_unreachable';
     console.error('meal-photo: provider call failed', traceId, reason);

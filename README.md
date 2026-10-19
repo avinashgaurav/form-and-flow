@@ -39,6 +39,7 @@ npm run web -w app
 
 - **On your phone:** run `npm start -w app`, then scan the QR code with Expo Go (Android) or the Camera app (iPhone) on the same Wi-Fi.
 - **All checks:** `npm run verify` runs the typechecks and the engine, database and app tests.
+- **Real-AI check:** with your own `ANTHROPIC_API_KEY` set in your terminal, `npm run ai:smoke` sends the app's exact coach requests to Claude and checks the replies with the phone's validator. Add `-- --photo path/to/meal.jpg` to test photo logging, or `-- --model claude-haiku-5-5` to try another model. It costs a few cents.
 - **Web build:** `npm run build:web` (Vercel runs this on every push to `main`).
 - **Server and phone builds:** see [supabase/SETUP.md](supabase/SETUP.md). The AI coach, photo logging and backup need your own Supabase project and Anthropic API key.
 

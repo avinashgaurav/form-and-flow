@@ -13,7 +13,9 @@ function useWidth(): [number, (e: LayoutChangeEvent) => void] {
   return [w, (e) => setW(Math.round(e.nativeEvent.layout.width))];
 }
 
-const PAD = { top: 18, right: 8, bottom: 22, left: 36 };
+const PAD = { top: 18, right: 8, bottom: 22, left: 40 };
+/** Minimum vertical distance between two axis labels, in pixels. */
+const LABEL_GAP = 14;
 
 export interface TrendPoint {
   /** Days since the first point; gaps stay gaps. */
@@ -82,8 +84,18 @@ export function Bars({ bars, band, summary, height = 150, showValues = true }: {
       {width > 0 && (
         <Svg width={width} height={height} pointerEvents="none">
           {band && <Rect x={PAD.left} width={w} y={sy(band[1])} height={Math.max(2, sy(band[0]) - sy(band[1]))} fill={color.okWash} />}
-          {band && <SvgText x={PAD.left - 6} y={sy(band[1]) + 4} fontSize={11} fontFamily={font.medium} fill={color.muted} textAnchor="end">{String(band[1])}</SvgText>}
-          {band && <SvgText x={PAD.left - 6} y={sy(band[0]) + 4} fontSize={11} fontFamily={font.medium} fill={color.muted} textAnchor="end">{String(band[0])}</SvgText>}
+          {band && (() => {
+            // A thin band would print its two numbers on top of each other: spread them apart.
+            const hiY = sy(band[1]);
+            const loY = sy(band[0]);
+            const spread = Math.max(0, (LABEL_GAP - (loY - hiY)) / 2);
+            return (
+              <G>
+                <SvgText x={PAD.left - 6} y={Math.max(10, hiY - spread) + 4} fontSize={11} fontFamily={font.medium} fill={color.muted} textAnchor="end">{band[1].toLocaleString('en-IN')}</SvgText>
+                <SvgText x={PAD.left - 6} y={loY + spread + 4} fontSize={11} fontFamily={font.medium} fill={color.muted} textAnchor="end">{band[0].toLocaleString('en-IN')}</SvgText>
+              </G>
+            );
+          })()}
           <Line x1={PAD.left} x2={width - PAD.right} y1={sy(0)} y2={sy(0)} stroke={color.ink} strokeWidth={1.5} />
           {bars.map((b, i) => {
             const bw = Math.min(28, slot * 0.6);

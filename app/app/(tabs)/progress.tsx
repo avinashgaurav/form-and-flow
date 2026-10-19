@@ -61,10 +61,10 @@ export default function Progress() {
     setTried(false);
     const value = Math.round(kg * 10) / 10;
     if (editing) {
-      dispatch({ type: 'patch', patch: { weights: state.weights.map((w) => (w.id === editing ? { ...w, kg: value } : w)) } });
+      dispatch({ type: 'patch', patch: { weights: state.weights.map((w) => (w.id === editing ? { ...w, kg: value, updatedAt: new Date().toISOString() } : w)) } });
     } else {
       const now = new Date();
-      const entry: WeightEntry = { id: newId(), kg: value, at: now.toISOString(), day: todayKey(tz, now) };
+      const entry: WeightEntry = { id: newId(), kg: value, at: now.toISOString(), day: todayKey(tz, now), updatedAt: now.toISOString() };
       dispatch({ type: 'patch', patch: { weights: [...state.weights, entry] } });
     }
     setWeightText('');

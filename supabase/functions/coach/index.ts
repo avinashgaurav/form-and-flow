@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { COACH_OUTPUT_SCHEMA, COACH_PROMPT_VERSION, DEFAULT_COACH_MODEL, isCoachModel, renderCoachPrompt, toModelOutput } from '../_shared/coach-prompt.ts';
+import { COACH_PROMPT_VERSION, DEFAULT_COACH_MODEL, isCoachModel, toModelOutput } from '../_shared/coach-prompt.ts';
 import { CORS, fail, json, requireUser, serviceClient } from '../_shared/http.ts';
+import { coachRequest } from '../_shared/requests.ts';
 import { startRun } from '../_shared/run.ts';
 import { parseCoachBody } from '../_shared/validate.ts';
 
@@ -45,16 +46,7 @@ Deno.serve(async (req) => {
 
   let response: Anthropic.Beta.BetaMessage;
   try {
-    response = await anthropic.beta.messages.create({
-      model,
-      // Replies are at most four sentences; this bounds cost and stops use as a general model.
-      max_tokens: 1500,
-      // Server-side fallback on a policy decline; Haiku has none, so it is left out there.
-      ...(model === 'claude-haiku-5-5' ? {} : { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: COACH_OUTPUT_SCHEMA } },
-      system: renderCoachPrompt(body.tone, body.facts, body.retry),
-      messages: [{ role: 'user', content: body.message }],
-    });
+    response = await anthropic.beta.messages.create(coachRequest({ model, tone: body.tone, facts: body.facts, retry: body.retry, message: body.message }));
   } catch (e) {
     const reason = e instanceof Anthropic.RateLimitError ? 'provider_rate_limited' : e instanceof Anthropic.APIError ? `provider_error_${e.status ?? 'unknown'}` : 'provider_unreachable';
     console.error('coach: provider call failed', traceId, reason);

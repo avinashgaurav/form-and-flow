@@ -2,7 +2,7 @@ import type { Dispatch } from 'react';
 import { newId, type Action } from '../store/store';
 import type { AppState, SetLog, SyncConflict } from '../store/types';
 import { supabase } from './backend';
-import { applyBackup, buildPush, idKey, missingIdKeys, type BackupData } from './syncMap';
+import { applyBackup, buildPush, idKey, missingIdKeys, type BackupData, type ServerWeight } from './syncMap';
 
 /**
  * Backup sync (plan/12 section 6). Every write is an idempotent upsert keyed by a client operation
@@ -81,6 +81,15 @@ async function pushOnce(getState: () => AppState, dispatch: AnyDispatch): Promis
   if (rows.reports.length) await step('reports', () => supabase!.from('reports').upsert(rows.reports, { onConflict: 'user_id,client_op_id', ignoreDuplicates: true }));
   if (rows.savedMeals.length) await step('usual meals', () => supabase!.from('saved_meals').upsert(rows.savedMeals, { onConflict: 'user_id,client_op_id' }));
   if (rows.weights.length) await step('weigh-ins', () => supabase!.from('progress_entries').upsert(rows.weights, { onConflict: 'user_id,client_op_id' }));
+  // Bring back weigh-ins added or edited on another phone (the database keeps the newest edit).
+  if (first.tracking.weight || first.weights.length) {
+    try {
+      const pulled = await selectAll<ServerWeight>('progress_entries', 'client_op_id, value, measured_at, tz, updated_at', 'id', { metric: 'weight_kg' });
+      dispatch({ type: 'weights:merge', rows: pulled });
+    } catch (e) {
+      errors.push(`weigh-ins: ${(e as Error).message}`);
+    }
+  }
 
   // 4. Workouts, then their new sets in one batch.
   let incrementalOk = true;
@@ -156,7 +165,7 @@ export async function pullBackup(): Promise<BackupData> {
     selectAll<BackupData['saved'][number]>('saved_meals', 'client_op_id, name, items, created_at', 'id'),
     selectAll<BackupData['restrictions'][number]>('restrictions', 'code, source, expires_at', 'id'),
     // Only weigh-ins: the same table can hold other measurements, which must never become kilograms.
-    selectAll<BackupData['weights'][number]>('progress_entries', 'client_op_id, value, measured_at, tz', 'id', { metric: 'weight_kg' }),
+    selectAll<BackupData['weights'][number]>('progress_entries', 'client_op_id, value, measured_at, tz, updated_at', 'id', { metric: 'weight_kg' }),
   ]);
   const profile = await supabase!.from('profiles').select('nutrition_mode').maybeSingle();
   const preferences = await supabase!.from('preferences').select('diet_pattern, allergens, allergen_free_text').maybeSingle();

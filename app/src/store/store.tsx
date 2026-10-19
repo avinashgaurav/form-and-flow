@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import * as Crypto from 'expo-crypto';
 import type { Restriction } from '@ff/engines';
-import { applyBackup, type BackupData } from '../lib/syncMap';
+import { applyBackup, mergeWeights, type BackupData, type ServerWeight } from '../lib/syncMap';
 import { clearAll, deleteSet, insertSet, loadAll, saveState } from './storage';
 import { initialState, type AppState, type SafetyEvent, type SessionLog, type SetLog, type SyncState } from './types';
 
@@ -19,6 +19,8 @@ export type Action =
   | { type: 'sync'; patch: Partial<Omit<SyncState, 'deleted'>>; processed?: string[] }
   /** Record server rows to delete on the next push (`table:client_op_id`). */
   | { type: 'tombstone'; keys: string[] }
+  /** Merge weigh-ins pulled after a push, so edits from another phone arrive here too. */
+  | { type: 'weights:merge'; rows: ServerWeight[] }
   /** Merge a pulled backup into the current state (never a stale snapshot). */
   | { type: 'restore'; data: BackupData; linkUserId?: string }
   | { type: 'reset' };
@@ -78,6 +80,8 @@ function reducer(state: AppState, a: Action): AppState {
       return { ...state, safetyEvents: [...state.safetyEvents, a.event] };
     case 'tombstone':
       return { ...state, sync: { ...state.sync, deleted: [...state.sync.deleted, ...a.keys.filter((k) => !state.sync.deleted.includes(k))] } };
+    case 'weights:merge':
+      return { ...state, weights: mergeWeights(state, a.rows) };
     case 'restore':
       return applyBackup(state, a.data, a.linkUserId);
     case 'sync': {
