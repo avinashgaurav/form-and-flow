@@ -16,6 +16,7 @@ import { hashUserId, parseCoachBody } from '../_shared/validate.ts';
 // The user picks a model in Settings (COACH_MODELS). COACH_MODEL only sets the default for users who have not.
 const envModel = Deno.env.get('COACH_MODEL');
 const DEFAULT_MODEL = isCoachModel(envModel) ? envModel : DEFAULT_COACH_MODEL;
+/** Model calls, not turns: a turn whose first answer is rejected makes a second call. */
 const TURNS_PER_HOUR = 30;
 const TOKENS_PER_DAY = 200_000;
 const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY'), timeout: 25_000, maxRetries: 1 });
@@ -74,7 +75,8 @@ Deno.serve(async (req) => {
   const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
   const [hour, day] = await Promise.all([
     admin.from('model_runs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', hourAgo).neq('stop_reason', 'rate_limited'),
-    admin.from('model_runs').select('input_tokens, output_tokens').eq('user_id', user.id).gte('created_at', dayAgo),
+    // At most 30 calls an hour reach here, so a day stays well under the 1,000-row read limit.
+    admin.from('model_runs').select('input_tokens, output_tokens').eq('user_id', user.id).gte('created_at', dayAgo).neq('stop_reason', 'rate_limited'),
   ]);
   if (hour.error || day.error) {
     await finish({ stop_reason: 'error_limits' });
@@ -82,7 +84,9 @@ Deno.serve(async (req) => {
   }
   const tokensToday = (day.data ?? []).reduce((n, r) => n + (r.input_tokens ?? 0) + (r.output_tokens ?? 0), 0);
   if ((hour.count ?? 0) > TURNS_PER_HOUR || tokensToday > TOKENS_PER_DAY) {
-    await finish({ stop_reason: 'rate_limited' });
+    // A refused request leaves no row behind, so refusals cannot pile up.
+    const del = await admin.from('model_runs').delete().eq('id', runId);
+    if (del.error) await finish({ stop_reason: 'rate_limited' });
     return fail('RATE_LIMITED', 'The coach has reached its limit for now; answers come from your plan’s rules until then', 429, traceId);
   }
 

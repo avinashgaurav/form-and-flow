@@ -218,24 +218,29 @@ function energyTarget(i: TargetInput, noDeficit: boolean, reasons: NumericTarget
 
 function proteinTarget(i: TargetInput, inDeficit: boolean, noHighProtein: boolean, review: Set<string>): ProteinTarget {
   const w = i.weightKg!;
-  // Whole grams, rounded inward so the shown range never leaves the computed one.
-  const grams = (g: { low: number; default: number; high: number | null }) => ({
-    low: Math.ceil(g.low * w - 1e-9),
-    default: Math.round(g.default * w),
-    high: g.high === null ? null : Math.floor(g.high * w + 1e-9),
-  });
+  // Whole grams, rounded so a promise is never broken: a range rounds inward, a floor ("at least")
+  // rounds up, a cap ("no more than") rounds down, and every value of a cap or floor is the same.
+  const grams = (g: { low: number; default: number; high: number | null }, kind: ProteinTarget['kind']) => {
+    const up = (v: number) => Math.ceil(v * w - 1e-9);
+    const down = (v: number) => Math.floor(v * w + 1e-9);
+    if (kind === 'cap') return { low: down(g.high ?? g.default), default: down(g.high ?? g.default), high: down(g.high ?? g.default) };
+    if (kind === 'floor') return { low: up(g.default), default: up(g.default), high: null };
+    const low = up(g.low);
+    const high = g.high === null ? null : down(g.high);
+    return { low, default: Math.min(high ?? Infinity, Math.max(low, Math.round(g.default * w))), high };
+  };
   review.add(NUTRITION_NEEDS_REVIEW[3]);
   const f = PROTEIN_G_PER_KG.floor;
   if (noHighProtein) {
     const gPerKg = { low: f, default: f, high: f };
-    return { kind: 'cap', gPerKg, grams: grams(gPerKg), ruleIds: ['PR-01', 'PR-04'], note: 'Kept at the general adult level because of a health condition. Ask your doctor before changing it.' };
+    return { kind: 'cap', gPerKg, grams: grams(gPerKg, 'cap'), ruleIds: ['PR-01', 'PR-04'], note: 'Kept at the general adult level because of a health condition. Ask your doctor before changing it.' };
   }
   if (TRAINING_GOALS.includes(i.goal) || inDeficit || i.resistanceTraining) {
     const gPerKg = { low: PROTEIN_G_PER_KG.low, default: PROTEIN_G_PER_KG.default, high: PROTEIN_G_PER_KG.high };
-    return { kind: 'range', gPerKg, grams: grams(gPerKg), ruleIds: ['PR-01', 'PR-02'], note: 'Range for people who strength train or are in a deficit.' };
+    return { kind: 'range', gPerKg, grams: grams(gPerKg, 'range'), ruleIds: ['PR-01', 'PR-02'], note: 'Range for people who strength train or are in a deficit.' };
   }
   const gPerKg = { low: f, default: f, high: null };
-  return { kind: 'floor', gPerKg, grams: grams(gPerKg), ruleIds: ['PR-01'], note: 'The general minimum for adults; more is fine.' };
+  return { kind: 'floor', gPerKg, grams: grams(gPerKg, 'floor'), ruleIds: ['PR-01'], note: 'The general minimum for adults; more is fine.' };
 }
 
 /** Compute targets. Non-numeric mode returns plate guidance only, with no numbers at all. */

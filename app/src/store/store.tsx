@@ -61,8 +61,9 @@ function reducer(state: AppState, a: Action): AppState {
       return {
         ...state,
         sets: state.sets.filter((s) => s.id !== a.id),
-        // With backup on, the removal travels as a tombstone so the server copy goes too.
-        sync: state.account ? { ...state.sync, deleted: [...state.sync.deleted, `exercise_sets:${a.id}`] } : state.sync,
+        // Once this phone has ever been linked to a backup, the removal travels as a tombstone so the
+        // server copy goes too, even if it happens while signed out.
+        sync: state.sync.linkedUserId ? { ...state.sync, deleted: [...state.sync.deleted, `exercise_sets:${a.id}`] } : state.sync,
       };
     case 'restriction:add': {
       // Never shorten an existing limit: a permanent one beats a temporary one, and the later expiry wins.

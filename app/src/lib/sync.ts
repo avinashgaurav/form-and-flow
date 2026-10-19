@@ -174,6 +174,8 @@ export async function restore(
   const before = getState();
   if (!supabase || !before.account) return { sessions: 0, sets: 0, checkIns: 0, meals: 0, conflicts: 0 };
   const data = await pullBackup();
+  // If the account changed while the pull was in flight, this backup is not this account's.
+  if (getState().account?.userId !== before.account.userId) throw new Error('the signed-in account changed; try again');
   const preview = applyBackup(before, data);
   const have = new Set(before.sets.map((s) => s.id));
   // Sets go to phone storage first (idempotent), then the reducer merges against the latest state.

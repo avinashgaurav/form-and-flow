@@ -144,7 +144,11 @@ export function buildPush(state: AppState, userId: string): PushRows {
   const readinessOp = r ? state.sync.ids[idKey.readiness(r.at)] : undefined;
   const readinessNew = !!r && (!state.sync.readinessAt || r.at > state.sync.readinessAt) && !!readinessOp;
 
-  const sessions = Object.values(state.sessions).filter((s) => s.status !== 'planned' && state.sync.ids[idKey.session(s.key)]);
+  // The in-progress workout goes last, so an older one is demoted in the same upsert before the
+  // new one claims the server's single in-progress slot.
+  const sessions = Object.values(state.sessions)
+    .filter((s) => s.status !== 'planned' && state.sync.ids[idKey.session(s.key)])
+    .sort((a, b) => Number(serverStatus(state, a) === 'in_progress') - Number(serverStatus(state, b) === 'in_progress'));
   const setsBySession: PushRows['setsBySession'] = {};
   for (const s of sessions) {
     const op = state.sync.ids[idKey.session(s.key)]!;

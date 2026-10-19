@@ -85,7 +85,9 @@ export function BackendSync() {
   ]);
   useEffect(() => {
     if (!state.hydrated || !userId || linked !== userId) return;
-    const t = setTimeout(() => void requestPush(getState, dispatch), 5000);
+    const t = setTimeout(() => {
+      requestPush(getState, dispatch).catch((e: Error) => dispatch({ type: 'sync', patch: { lastError: e.message } }));
+    }, 5000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, state.hydrated]);

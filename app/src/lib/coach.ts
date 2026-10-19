@@ -1,4 +1,4 @@
-import { coachTurn, shortenSession, type CoachContext, type CoachReply, type ModelCall } from '@ff/engines';
+import { coachTurn, shortenSession, substitutes, type CoachContext, type CoachReply, type ModelCall } from '@ff/engines';
 import type { AppState } from '../store/types';
 import { numericMode, nutritionFacts } from './food';
 import { currentPlan, effectiveSession, plannedFor, todayIndex } from './plan';
@@ -53,6 +53,10 @@ export function swapPatch(state: AppState, from: string, to: string) {
   const plan = currentPlan(state);
   const fresh = plan?.week.sessions.find((s) => s.day === todayIndex(state));
   if (!fresh) return null;
+  // Re-checked at confirm time: limits or equipment may have changed since the coach replied.
+  const profile = state.profile!;
+  const allowed = substitutes(from, { equipment: profile.training.equipment, restrictions: state.restrictions, experience: profile.training.experience });
+  if (!allowed.some((e) => e.id === to)) return null;
   const log = state.sessions[fresh.id];
   const swaps = { ...(log?.swaps ?? {}) };
   const base = Object.entries(swaps).find(([, v]) => v === from)?.[0] ?? from;

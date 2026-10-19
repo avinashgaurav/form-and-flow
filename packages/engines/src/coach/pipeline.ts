@@ -130,6 +130,8 @@ const UNIT_KINDS: { word: RegExp; key: RegExp }[] = [
   { word: /^(s|sec|secs|seconds?)$/i, key: /_rest_sec$/ },
   { word: /^sessions?$/i, key: /^sessions_/ },
   { word: /^exercises?$/i, key: /^today_exercises$/ },
+  // No fact is ever in these units, so a number with them must come from a cited card.
+  { word: /^(kg|kgs|kilos?|kilograms?|percent|per|pct)$/i, key: /^$/ },
 ];
 
 /** Spelled-out numbers dodge the digit check, so anything from three upwards is refused outright. */
@@ -144,7 +146,10 @@ export function unsourcedNumbers(text: string, facts: Record<string, number | st
   const numeric = Object.entries(facts).filter((e): e is [string, number] => typeof e[1] === 'number');
   const fromCards = cardNumbers(cards);
   const out: number[] = [];
-  for (const m of text.replace(/,(?=\d{3})/g, '').matchAll(/(\d+(?:\.\d+)?)\s*([A-Za-z]+)?/g)) {
+  // A range takes the unit after it for both ends: "90 to 140 g" is two gram figures.
+  const clean = text.replace(/,(?=\d{3})/g, '').replace(/%/g, ' percent');
+  const ranged = clean.replace(/(\d+(?:\.\d+)?)(\s*(?:to|-|–)\s*)(\d+(?:\.\d+)?)\s*([A-Za-z]+)/g, '$1 $4$2$3 $4');
+  for (const m of ranged.matchAll(/(\d+(?:\.\d+)?)\s*([A-Za-z]+)?/g)) {
     const n = Number(m[1]);
     const kind = m[2] ? UNIT_KINDS.find((u) => u.word.test(m[2]!)) : undefined;
     const pool = kind ? numeric.filter(([k]) => kind.key.test(k)).map(([, v]) => v) : numeric.map(([, v]) => v);

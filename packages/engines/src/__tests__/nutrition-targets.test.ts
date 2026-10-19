@@ -110,7 +110,7 @@ test('EN-08 no_deficit means maintenance only', () => {
 test('PR-01 floor of 0.83 g/kg when not training and not in a deficit', () => {
   const p = numeric(MAN).protein!;
   assert.equal(p.kind, 'floor');
-  assert.equal(p.grams.default, 58); // 0.83 x 70 kg = 58.1, shown as whole grams
+  assert.equal(p.grams.default, 59); // 0.83 x 70 kg = 58.1; an "at least" rounds up to whole grams
   assert.equal(p.gPerKg.high, null);
   assert.deepEqual(p.ruleIds, ['PR-01']);
 });
@@ -208,4 +208,11 @@ test('protein grams are whole numbers rounded inward for every whole-kg weight',
     for (const v of [p.grams.low, p.grams.default, p.grams.high]) if (v !== null) assert.ok(Number.isInteger(v), `${w} kg gives ${v}`);
     assert.ok(p.grams.low >= p.gPerKg.low * w - 1e-9 && (p.grams.high === null || p.grams.high <= p.gPerKg.high! * w + 1e-9));
   }
+});
+
+test('a protein cap never shows a number above itself', () => {
+  const t = computeTargets({ sex: 'male', ageYears: 35, heightCm: 175, weightKg: 70, activity: 'light', goal: 'muscle_gain', restrictions: [{ code: 'no_high_protein', source: 'assessment' }], resistanceTraining: true });
+  const p = (t as NumericTargets).protein!;
+  assert.equal(p.kind, 'cap');
+  assert.deepEqual([p.grams.low, p.grams.default, p.grams.high], [58, 58, 58]);
 });

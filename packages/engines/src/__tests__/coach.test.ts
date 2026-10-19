@@ -158,3 +158,12 @@ test('plate-guidance mode never gets a calorie or gram number from the coach', a
     assert.doesNotMatch(r.text, /\d+\s?(g|kcal)\b/, q);
   }
 });
+
+test('both ends of a range, kilograms and percentages need a matching source', () => {
+  const f = { ex1_rest_sec: 90, protein_g_low: 98, protein_g_high: 140 };
+  assert.deepEqual(unsourcedNumbers('Aim for 90 to 140 g protein.', f), [90]);
+  assert.deepEqual(unsourcedNumbers('Aim for 98 to 140 g protein.', f), []);
+  assert.deepEqual(unsourcedNumbers('Eat 90 kg of protein.', f), [90]);
+  assert.deepEqual(unsourcedNumbers('Make it 90% protein.', f), [90]);
+  assert.deepEqual(unsourcedNumbers('Rest 90 s.', f), []);
+});

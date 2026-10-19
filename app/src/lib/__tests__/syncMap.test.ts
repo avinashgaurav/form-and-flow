@@ -218,3 +218,16 @@ test('restore adds meals only in the backup and keeps their logged numbers', () 
   assert.deepEqual(restored.items[0]!.snapshot, snap);
   assert.equal(restored.items[0]!.unit, 'katori');
 });
+
+test('the in-progress workout is sent after the one it replaced', () => {
+  const s = base();
+  s.sessions = {
+    z: { key: 'z', status: 'in_progress', startedAt: '2026-10-19T12:00:00.000Z', swaps: {} },
+    a: { key: 'a', status: 'partial', startedAt: '2026-10-18T12:00:00.000Z', swaps: {} },
+    m: { key: 'm', status: 'completed', startedAt: '2026-10-17T12:00:00.000Z', swaps: {} },
+  };
+  withIds(s);
+  const rows = buildPush(s, U).sessions as { status: string }[];
+  assert.equal(rows[rows.length - 1]!.status, 'in_progress');
+  assert.equal(rows.filter((r) => r.status === 'in_progress').length, 1);
+});

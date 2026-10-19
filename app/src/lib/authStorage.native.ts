@@ -5,7 +5,8 @@ import * as SecureStore from 'expo-secure-store';
  * Supabase keeps its sign-in session in the iOS Keychain or Android Keystore (plan/15), never in
  * plain files. A session can exceed SecureStore's per-item size, so it is stored in chunks.
  */
-const CHUNK = 1800;
+// Characters per item; well under SecureStore's 2,048-byte limit even for multi-byte text.
+const CHUNK = 500;
 const base = (key: string) => key.replace(/[^A-Za-z0-9._-]/g, '_');
 
 async function count(key: string): Promise<number> {
