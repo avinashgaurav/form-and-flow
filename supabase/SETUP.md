@@ -44,3 +44,12 @@ Copy `app/.env.example` to `app/.env` and fill in the project URL and anon (publ
 | Coach wording | `functions/coach` calls Claude | Needs backup sign-in and AI consent; server builds its own prompt; 30 turns an hour |
 | Export and deletion | `functions/privacy` | Deletion needs a sign-in in the last 15 minutes |
 | Security log | `security_log`, hashed user ID, no content | Kept 1 year after deletion (DPDP R-05, counsel to confirm) |
+
+## Phone builds (EAS)
+
+The app builds with Expo's build service from the `app` folder. You sign in yourself; nobody else should hold these logins.
+
+- **Try it now, both phones:** install Expo Go, keep the phone on the same Wi-Fi as the Mac, run `npx expo start` in `app`, and scan the QR code (Android: Expo Go's scanner; iPhone: the Camera app).
+- **Android install file:** `npx eas-cli@latest login` (free Expo account), then `npx eas-cli@latest build -p android --profile preview` in `app`. The build page gives a link and QR code to install the APK.
+- **iPhone (TestFlight):** needs an Apple Developer account. Run `npx eas-cli@latest build -p ios --profile production`, then `npx eas-cli@latest submit -p ios`; both ask for your Apple sign-in.
+- **Installable website:** open https://form-and-flow.vercel.app and use Add to Home Screen. It works offline after the first visit.
