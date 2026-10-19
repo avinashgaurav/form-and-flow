@@ -6,9 +6,44 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "ios": { "supportsTablet": false, "bundleIdentifier": "dev.formandflow.app" },
-    "android": { "package": "dev.formandflow.app" },
-    "web": { "bundler": "metro", "output": "single" },
-    "plugins": ["expo-router", "expo-status-bar", "expo-font", "expo-sqlite", "expo-secure-store"]
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.formandflow.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "dev.formandflow.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFF6E5"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Form & Flow",
+      "shortName": "Form & Flow",
+      "themeColor": "#FFF6E5",
+      "backgroundColor": "#FFF6E5"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-font",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF6E5"
+        }
+      ]
+    ],
+    "icon": "./assets/icon.png"
   }
 }
