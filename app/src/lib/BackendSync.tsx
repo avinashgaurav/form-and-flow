@@ -81,6 +81,7 @@ export function BackendSync() {
     state.meals.length,
     state.meals.reduce((m, x) => (x.updatedAt && x.updatedAt > m ? x.updatedAt : m), ''),
     state.savedMeals.length,
+    state.weights.map((w) => `${w.id}:${w.kg}`).join(','),
     state.sync.deleted.length,
   ]);
   useEffect(() => {

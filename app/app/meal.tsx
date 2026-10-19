@@ -1,5 +1,6 @@
 import {
   checkLogFood,
+  getCard,
   draftToLogItem,
   getFood,
   itemTotals,
@@ -15,8 +16,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { FOOD_DATA_NOTE, fmtPortion, fmtTotal, foodPrefs, hasOilChoice, MEAL_LABEL, MEAL_ORDER, mealTypeAt, numericMode, toMealItem, UNIT_LABEL, unitsFor } from '../src/lib/food';
+import { backendConfigured } from '../src/lib/backend';
+import { photoToDrafts } from '../src/lib/photo';
 import { todayKey } from '../src/lib/plan';
 import { newId, useStore } from '../src/store/store';
+import { AI_NOTICE, NOTICE_VERSION } from '../src/store/types';
 import type { MealItem, MealLog, MealType, SavedMeal } from '../src/store/types';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Chip, ChipGroup, Eyebrow, Field, Row, Screen, Stepper, T } from '../src/ui';
@@ -31,7 +35,7 @@ interface Draft {
   unit: FoodUnit | null;
   oilLevel?: OilLevel;
   confidence: 'high' | 'low';
-  from: 'search' | 'text_parse';
+  from: 'search' | 'text_parse' | 'photo';
   existing?: MealItem;
 }
 
@@ -66,6 +70,44 @@ export default function MealBuilder() {
   const [query, setQuery] = useState('');
   const [remember, setRemember] = useState(false);
   const [saveName, setSaveName] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoNote, setPhotoNote] = useState<{ tone: 'info' | 'warn' | 'ok'; title: string } | null>(null);
+  // Photo logging needs the AI server: sign-in and AI consent.
+  const photoBlocker = !backendConfigured
+    ? 'Photo logging needs the AI server, which is not set up in this build yet. Type or search instead.'
+    : !state.account
+      ? 'Turn on backup in Settings to use photo logging.'
+      : !state.consents?.aiProcessing
+        ? 'Allow AI processing in Settings to use photo logging.'
+        : null;
+
+  // Photos were added to the notice later: anyone who agreed to an older one is asked once first.
+  const [askPhotoConsent, setAskPhotoConsent] = useState<'camera' | 'library' | null>(null);
+  function agreePhotos() {
+    if (!state.consents || !askPhotoConsent) return;
+    const source = askPhotoConsent;
+    dispatch({ type: 'patch', patch: { consents: { ...state.consents, version: NOTICE_VERSION, at: new Date().toISOString() } } });
+    setAskPhotoConsent(null);
+    void fromPhoto(source, true);
+  }
+
+  async function fromPhoto(source: 'camera' | 'library', agreed = false) {
+    if (!agreed && state.consents?.version !== NOTICE_VERSION) return setAskPhotoConsent(source);
+    setPhotoBusy(true);
+    setPhotoNote(null);
+    try {
+      const r = await photoToDrafts(source, state.coachModel);
+      if (r.kind === 'drafts') {
+        setDrafts((d) => [...d, ...r.drafts.map((p) => ({ key: newId(), text: p.unmatched ? p.foodText : p.text, food: p.match, quantity: p.quantity, unit: p.unit, confidence: p.confidence, from: 'photo' as const }))]);
+        setPhotoNote({ tone: 'info', title: `Found ${r.drafts.length} ${r.drafts.length === 1 ? 'food' : 'foods'}. Check each one and the amounts.` });
+      } else if (r.kind === 'not_food') setPhotoNote({ tone: 'warn', title: 'No food found in that photo. Try another, or type the meal.' });
+      else if (r.kind === 'error') setPhotoNote({ tone: 'warn', title: r.message });
+    } catch {
+      setPhotoNote({ tone: 'warn', title: 'Something went wrong with the photo. Type the meal instead.' });
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
   const [drafts, setDrafts] = useState<Draft[]>(() =>
     (editing?.items ?? []).map((i) => ({ key: i.id, text: i.name, food: { ...i.food, name: i.name }, quantity: i.quantity, unit: i.unit, oilLevel: i.oilLevel, confidence: 'high', from: 'search', existing: i })),
   );
@@ -124,7 +166,7 @@ export default function MealBuilder() {
     }
     const tz = state.profile?.timezone ?? 'Asia/Kolkata';
     const now = new Date();
-    const source: MealLog['source'] = drafts.some((d) => d.from === 'text_parse') ? 'text_parse' : 'search';
+    const source: MealLog['source'] = drafts.some((d) => d.from === 'photo') ? 'photo' : drafts.some((d) => d.from === 'text_parse') ? 'text_parse' : 'search';
     const meal: MealLog = editing
       ? { ...editing, mealType, items, updatedAt: now.toISOString() }
       : { id: newId(), day: todayKey(tz, now), at: now.toISOString(), mealType, source, items };
@@ -151,6 +193,39 @@ export default function MealBuilder() {
       </Row>
       <T v="title">{editing ? 'Edit meal' : 'Log a meal'}</T>
       <ChipGroup options={MEAL_ORDER.map((m) => ({ value: m, label: MEAL_LABEL[m] }))} value={mealType} onChange={setMealType} />
+
+      <Card>
+        <T v="h2">Snap your plate</T>
+        {photoBlocker ? (
+          <T v="small">{photoBlocker}</T>
+        ) : (
+          <>
+            <Row>
+              <View style={{ flex: 1 }}>
+                <Button label={photoBusy ? 'Reading...' : 'Take photo'} onPress={() => fromPhoto('camera')} disabled={photoBusy} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button label="Choose photo" kind="secondary" onPress={() => fromPhoto('library')} disabled={photoBusy} />
+              </View>
+            </Row>
+            <T v="small">The photo goes to the AI only to name the foods and amounts, then it is deleted from the app. You check every item; the app counts the calories.</T>
+          </>
+        )}
+        {askPhotoConsent && (
+          <Card tone="sunken">
+            <T v="h2">Before your first photo</T>
+            <T v="small" style={{ color: color.ink }}>{AI_NOTICE}</T>
+            <Row>
+              <View style={{ flex: 1 }}>
+                <Button label="Agree and continue" onPress={agreePhotos} />
+              </View>
+              <Button label="Not now" kind="ghost" onPress={() => setAskPhotoConsent(null)} />
+            </Row>
+          </Card>
+        )}
+        {photoNote && <Banner tone={photoNote.tone} title={photoNote.title} />}
+        {drafts.some((d) => d.from === 'photo') && <T v="small">{getCard('ev-photo-estimates')?.summary ?? ''}</T>}
+      </Card>
 
       <Card>
         <T v="h2">Type what you ate</T>
@@ -208,9 +283,9 @@ export default function MealBuilder() {
                 label="Amount"
                 value={d.quantity}
                 onChange={(q) => update(d.key, { quantity: q })}
-                min={measured ? 10 : 0.25}
+                min={measured ? 5 : 0.25}
                 max={measured ? 5000 : 20}
-                step={measured ? 10 : 0.25}
+                step={measured ? 5 : 0.25}
                 unit={UNIT_LABEL[d.unit][d.quantity === 1 ? 0 : 1]}
               />
             )}

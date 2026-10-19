@@ -100,3 +100,5 @@ export {
   type FreeTextMatch,
   type LogCheck,
 } from './filters';
+export { PHOTO_MAX_ITEMS, PHOTO_OUTPUT_SCHEMA, PHOTO_PROMPT_VERSION, PHOTO_SYSTEM, PHOTO_UNITS, toPhotoOutput, type PhotoItem, type PhotoOutput } from './photo-prompt';
+export { photoItemsToDrafts } from './photo';

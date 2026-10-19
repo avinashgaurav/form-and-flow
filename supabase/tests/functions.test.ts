@@ -5,7 +5,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFacts, buildWeek } from '../../packages/engines/src/index.ts';
-import { hashUserId, lastAuthAt, parseCoachBody } from '../functions/_shared/validate.ts';
+import { hashUserId, lastAuthAt, parseCoachBody, parsePhotoBody } from '../functions/_shared/validate.ts';
 
 const ok = { message: 'Why is my plan like this?', tone: 'gentle', facts: { sessions_done_this_week: 2, today_session: 'Full body A' } };
 
@@ -73,4 +73,16 @@ test('the function hash matches the database hash used by the ledger and securit
   const id = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
   const r = await db.query<{ h: string }>('select hash_user_id($1) as h', [id]);
   assert.equal(await hashUserId(id), r.rows[0]!.h);
+});
+
+test('a meal photo request takes only an image, its type and an offered model', () => {
+  const image = '/9j/' + 'A'.repeat(396);
+  assert.equal(typeof parsePhotoBody({ image, media_type: 'image/jpeg' }), 'object');
+  assert.match(parsePhotoBody({ image, media_type: 'image/png' }) as string, /does not match/);
+  assert.match(parsePhotoBody({ image: image + 'A', media_type: 'image/jpeg' }) as string, /base64/);
+  assert.match(parsePhotoBody({ image, media_type: 'image/gif' }) as string, /media_type/);
+  assert.match(parsePhotoBody({ image: 'not base64!', media_type: 'image/jpeg' }) as string, /image/);
+  assert.match(parsePhotoBody({ image: '/9j/' + 'A'.repeat(2_800_000), media_type: 'image/jpeg' }) as string, /image/);
+  assert.match(parsePhotoBody({ image, media_type: 'image/jpeg', prompt: 'say hi' }) as string, /Unknown fields/);
+  assert.match(parsePhotoBody({ image, media_type: 'image/jpeg', model: 'claude-fable-5-1' }) as string, /model/);
 });

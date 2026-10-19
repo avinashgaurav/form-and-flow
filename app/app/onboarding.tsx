@@ -17,7 +17,7 @@ import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { deviceTimeZone, makePlan, plural } from '../src/lib/plan';
 import { useStore } from '../src/store/store';
-import { NOTICE_VERSION, emptyDraft, type AppState, type Profile } from '../src/store/types';
+import { AI_NOTICE, NOTICE_VERSION, emptyDraft, type AppState, type Profile } from '../src/store/types';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Chip, ChipGroup, Eyebrow, Field, Row, Screen, Stepper, T } from '../src/ui';
 
@@ -196,13 +196,13 @@ export default function Onboarding() {
           <Field label="Year of birth" keyboardType="numeric" value={d.birthYear ?? ''} onChangeText={(t) => set({ birthYear: t.replace(/\D/g, '').slice(0, 4) })} placeholder="1994" hint="This app is for adults. We keep only the year." error={errors.birthYear} />
           <Card>
             <T v="h2">How we use your data</T>
-            <T v="small">We store your profile, safety answers and logs to build and adjust your plan. Your data stays on this phone in this build. You can export or delete it in Settings at any time.</T>
+            <T v="small">We store your profile, safety answers and logs on this phone to build and adjust your plan. If you turn on backup, a copy is kept in your account. You can export or delete it in Settings at any time.</T>
             <Chip label={d.consentCore ? 'Agreed' : 'I agree (required)'} selected={!!d.consentCore} onPress={() => set({ consentCore: !d.consentCore })} accessibilityLabel="I agree to the data use described above" />
             {errors.consent && <T v="small" style={{ color: color.danger }}>{errors.consent}</T>}
           </Card>
           <Card>
             <T v="h2">AI coach (optional)</T>
-            <T v="small">Later builds can send a minimal, pseudonymous summary to an AI provider outside India to write coach replies. It is off unless you turn it on, and the plan, workouts and safety work without it. Not active in this build.</T>
+            <T v="small">{AI_NOTICE}</T>
             <Chip label={d.consentAi ? 'Allowed' : 'Not allowed'} selected={!!d.consentAi} onPress={() => set({ consentAi: !d.consentAi })} accessibilityLabel="Allow the AI coach" />
           </Card>
           <Button label="Continue" onPress={next} tall />

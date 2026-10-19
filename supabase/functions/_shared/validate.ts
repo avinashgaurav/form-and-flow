@@ -52,6 +52,32 @@ export function parseCoachBody(raw: unknown): CoachBody | string {
   };
 }
 
+export interface PhotoBody {
+  /** Base64 JPEG, PNG or WebP, already resized on the phone. */
+  image: string;
+  media_type: 'image/jpeg' | 'image/png' | 'image/webp';
+  model?: CoachModelId;
+}
+
+/** About 2 MB of image after base64; the phone sends roughly a tenth of that. */
+export const PHOTO_MAX_BASE64 = 2_800_000;
+const MEDIA = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+export function parsePhotoBody(raw: unknown): PhotoBody | string {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'Body must be a JSON object';
+  const b = raw as Record<string, unknown>;
+  const extra = Object.keys(b).filter((k) => !['image', 'media_type', 'model'].includes(k));
+  if (extra.length) return `Unknown fields: ${extra.join(', ')}`;
+  if (!MEDIA.includes(b.media_type as PhotoBody['media_type'])) return 'media_type must be image/jpeg, image/png or image/webp';
+  if (typeof b.image !== 'string' || b.image.length < 100 || b.image.length > PHOTO_MAX_BASE64 || b.image.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b.image))
+    return 'image must be a base64 photo under 2 MB';
+  // The first bytes must say what the type says, so junk never reaches the model.
+  const magic: Record<PhotoBody['media_type'], string> = { 'image/jpeg': '/9j/', 'image/png': 'iVBORw0KGgo', 'image/webp': 'UklGR' };
+  if (!b.image.startsWith(magic[b.media_type as PhotoBody['media_type']])) return 'image content does not match media_type';
+  if (b.model !== undefined && !isCoachModel(b.model)) return 'model must be one of the offered models';
+  return { image: b.image, media_type: b.media_type as PhotoBody['media_type'], model: b.model as CoachModelId | undefined };
+}
+
 /** Same value as the SQL function hash_user_id(uuid): hex SHA-256 of the UUID text. */
 export async function hashUserId(id: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id.toLowerCase()));

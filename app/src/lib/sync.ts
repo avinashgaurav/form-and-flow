@@ -19,10 +19,12 @@ export interface PushResult {
 const PAGE = 1000;
 
 /** Reads every row of a table the user owns, a page at a time in a stable order. */
-async function selectAll<T>(table: string, columns: string, order: string): Promise<T[]> {
+async function selectAll<T>(table: string, columns: string, order: string, where?: Record<string, string>): Promise<T[]> {
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE) {
-    const r = await supabase!.from(table).select(columns).order(order).range(from, from + PAGE - 1);
+    let q = supabase!.from(table).select(columns);
+    for (const [k, v] of Object.entries(where ?? {})) q = q.eq(k, v);
+    const r = await q.order(order).range(from, from + PAGE - 1);
     if (r.error) throw new Error(`${table}: ${r.error.message}`);
     rows.push(...(r.data as T[]));
     if (r.data.length < PAGE) return rows;
@@ -78,6 +80,7 @@ async function pushOnce(getState: () => AppState, dispatch: AnyDispatch): Promis
   if (rows.checkIns.length) await step('check-ins', () => supabase!.from('check_ins').upsert(rows.checkIns, { onConflict: 'user_id,day' }));
   if (rows.reports.length) await step('reports', () => supabase!.from('reports').upsert(rows.reports, { onConflict: 'user_id,client_op_id', ignoreDuplicates: true }));
   if (rows.savedMeals.length) await step('usual meals', () => supabase!.from('saved_meals').upsert(rows.savedMeals, { onConflict: 'user_id,client_op_id' }));
+  if (rows.weights.length) await step('weigh-ins', () => supabase!.from('progress_entries').upsert(rows.weights, { onConflict: 'user_id,client_op_id' }));
 
   // 4. Workouts, then their new sets in one batch.
   let incrementalOk = true;
@@ -144,7 +147,7 @@ export function requestPush(getState: () => AppState, dispatch: AnyDispatch): Pr
 
 /** Pull the whole backup (paged, so nothing past 1,000 rows is missed). */
 export async function pullBackup(): Promise<BackupData> {
-  const [sessions, sets, checkIns, meals, items, saved, restrictions] = await Promise.all([
+  const [sessions, sets, checkIns, meals, items, saved, restrictions, weights] = await Promise.all([
     selectAll<BackupData['sessions'][number]>('workout_sessions', 'id, client_op_id, plan_session_key, status, started_at, ended_at, feel', 'id'),
     selectAll<BackupData['sets'][number]>('exercise_sets', 'client_op_id, session_id, exercise_id, set_index, reps, duration_s, load_kg, effort_rir, logged_at', 'id'),
     selectAll<BackupData['checkIns'][number]>('check_ins', 'day, energy, minutes_available, pain, client_op_id', 'id'),
@@ -152,12 +155,14 @@ export async function pullBackup(): Promise<BackupData> {
     selectAll<BackupData['items'][number]>('meal_log_items', 'meal_log_id, client_op_id, name, qty, unit, oil_level, nutrients_snapshot', 'id'),
     selectAll<BackupData['saved'][number]>('saved_meals', 'client_op_id, name, items, created_at', 'id'),
     selectAll<BackupData['restrictions'][number]>('restrictions', 'code, source, expires_at', 'id'),
+    // Only weigh-ins: the same table can hold other measurements, which must never become kilograms.
+    selectAll<BackupData['weights'][number]>('progress_entries', 'client_op_id, value, measured_at, tz', 'id', { metric: 'weight_kg' }),
   ]);
   const profile = await supabase!.from('profiles').select('nutrition_mode').maybeSingle();
   const preferences = await supabase!.from('preferences').select('diet_pattern, allergens, allergen_free_text').maybeSingle();
   if (profile.error) throw new Error(`profile: ${profile.error.message}`);
   if (preferences.error) throw new Error(`food settings: ${preferences.error.message}`);
-  return { sessions, sets, checkIns, meals, items, saved, restrictions, profile: profile.data, preferences: preferences.data };
+  return { sessions, sets, checkIns, meals, items, saved, restrictions, weights, profile: profile.data, preferences: preferences.data };
 }
 
 /**

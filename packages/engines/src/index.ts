@@ -11,3 +11,4 @@ export * from './review';
 export * from './coach';
 export * from './reminders';
 export * from './nutrition';
+export * from './progress';

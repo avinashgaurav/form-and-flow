@@ -1,4 +1,4 @@
-import { getExercise, isHoldExercise, QUESTIONNAIRE_VERSION, type AllergenTag, type LogSnapshot, type Restriction } from '@ff/engines';
+import { getExercise, isHoldExercise, logicalDay, QUESTIONNAIRE_VERSION, type AllergenTag, type LogSnapshot, type Restriction, type WeightEntry } from '@ff/engines';
 import type { AppState, MealLog, NutritionPrefs, SafetyEvent, SavedMeal, SessionLog, SetLog, SyncConflict } from '../store/types';
 
 /**
@@ -59,7 +59,7 @@ export function setRow(userId: string, s: SetLog) {
 }
 
 /** Tables the phone may delete from, children before parents. */
-const DELETABLE_TABLES = ['exercise_sets', 'meal_log_items', 'workout_sessions', 'meal_logs', 'saved_meals'] as const;
+const DELETABLE_TABLES = ['exercise_sets', 'meal_log_items', 'workout_sessions', 'meal_logs', 'saved_meals', 'progress_entries'] as const;
 
 export type Tombstone = { table: (typeof DELETABLE_TABLES)[number]; opId: string; raw: string };
 
@@ -125,6 +125,7 @@ export interface PushRows {
   /** Meal client operation ID to that meal's item rows (without meal_log_id yet). */
   itemsByMeal: Record<string, ReturnType<typeof mealRows>['items']>;
   savedMeals: Record<string, unknown>[];
+  weights: Record<string, unknown>[];
   deletes: Tombstone[];
   cursor: { consentAt?: string; readinessAt?: string };
 }
@@ -227,6 +228,9 @@ export function buildPush(state: AppState, userId: string): PushRows {
     savedMeals: state.savedMeals
       .filter((m) => !isTombstoned(state, 'saved_meals', m.id))
       .map((m) => ({ user_id: userId, client_op_id: m.id, name: m.name, items: m.items, created_at: m.at, updated_at: m.at })),
+    weights: state.weights
+      .filter((w) => !isTombstoned(state, 'progress_entries', w.id))
+      .map((w) => ({ user_id: userId, metric: 'weight_kg', value: w.kg, measured_at: w.at, tz, source: 'manual', client_op_id: w.id })),
     deletes: tombstones(state),
     cursor: { consentAt: consentNew ? c!.at : state.sync.consentAt, readinessAt: readinessNew ? r!.at : state.sync.readinessAt },
   };
@@ -457,8 +461,30 @@ export function mergeSettings(
   return { restrictions: [...byCode.values()], nutrition };
 }
 
+export interface ServerWeight {
+  client_op_id: string;
+  value: number;
+  measured_at: string;
+  /** The zone the weigh-in was made in; its logical day is computed there. */
+  tz?: string;
+}
+
+/** Weigh-ins only in the backup are added; the phone keeps its own and anything it deleted stays gone. */
+export function mergeWeights(state: AppState, rows: ServerWeight[]): WeightEntry[] {
+  const have = new Set(state.weights.map((w) => w.id));
+  const tz = state.profile?.timezone ?? 'Asia/Kolkata';
+  const added = rows
+    .filter((r) => !have.has(r.client_op_id) && !isTombstoned(state, 'progress_entries', r.client_op_id))
+    .map((r) => {
+      const at = new Date(r.measured_at);
+      return { id: r.client_op_id, kg: Number(r.value), at: at.toISOString(), day: logicalDay(at, r.tz ?? tz) };
+    });
+  return [...state.weights, ...added];
+}
+
 /** Everything a restore pulls, in one value the store's reducer can merge against its current state. */
 export interface BackupData {
+  weights: ServerWeight[];
   sessions: ServerSession[];
   sets: ServerSet[];
   checkIns: ServerCheckIn[];
@@ -485,6 +511,7 @@ export function applyBackup(state: AppState, data: BackupData, linkUserId?: stri
     savedMeals: f.savedMeals,
     restrictions: st.restrictions,
     nutrition: st.nutrition,
+    weights: mergeWeights(state, data.weights ?? []),
     sync: { ...state.sync, ids: w.ids, conflicts: w.conflicts, ...(linkUserId ? { linkedUserId: linkUserId } : {}) },
   };
 }

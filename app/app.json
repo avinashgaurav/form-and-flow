@@ -42,6 +42,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFF6E5"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Form & Flow opens your photos only when you choose a meal photo to log.",
+          "cameraPermission": "Form & Flow uses the camera only when you take a photo of a meal to log.",
+          "microphonePermission": false
+        }
       ]
     ],
     "icon": "./assets/icon.png"

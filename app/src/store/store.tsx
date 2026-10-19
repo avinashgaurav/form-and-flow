@@ -33,6 +33,7 @@ function reducer(state: AppState, a: Action): AppState {
         draft: { ...base.draft, ...(a.state?.draft ?? {}) },
         sync: { ...base.sync, ...(a.state?.sync ?? {}) },
         nutrition: { ...base.nutrition, ...(a.state?.nutrition ?? {}) },
+        tracking: { ...base.tracking, ...(a.state?.tracking ?? {}) },
         reminders: { ...base.reminders, ...(a.state?.reminders ?? {}) },
       };
       // Coach conversations are kept 90 days by default (plan/15 section 2).

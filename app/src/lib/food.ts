@@ -130,3 +130,30 @@ export function nutritionFacts(state: AppState): Record<string, number | string>
   }
   return f;
 }
+
+export interface FoodDay {
+  day: string;
+  meals: number;
+  /** Middle of the logged energy range; null when nothing was logged. Some values may be missing. */
+  energyKcal: number | null;
+  proteinG: number | null;
+  /** True when any item lacked a value, so the day is a floor, not a total. */
+  partial: boolean;
+}
+
+/** Logged food per day for the given days. Shows what was logged, not what was eaten. */
+export function foodDays(state: AppState, days: string[]): FoodDay[] {
+  return days.map((day) => {
+    const meals = mealsOn(state, day);
+    const t = totalsOf(meals.flatMap((m) => m.items));
+    if (!t) return { day, meals: 0, energyKcal: null, proteinG: null, partial: false };
+    const mid = (x: NutrientTotal) => (x.status === 'complete' ? x.mid : x.knownPart.mid);
+    return {
+      day,
+      meals: meals.length,
+      energyKcal: Math.round(mid(t.energyKcal) / 10) * 10,
+      proteinG: Math.round(mid(t.proteinG)),
+      partial: t.energyKcal.status === 'incomplete' || t.proteinG.status === 'incomplete',
+    };
+  });
+}

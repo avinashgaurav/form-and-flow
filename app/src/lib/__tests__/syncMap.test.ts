@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { initialState, type AppState } from '../../store/types';
-import { applyBackup, buildPush, idKey, mergeBackup, mergeFood, mergeSettings, missingIdKeys, setRow, type ServerSession, type ServerSet } from '../syncMap';
+import { applyBackup, buildPush, idKey, mergeBackup, mergeFood, mergeSettings, mergeWeights, missingIdKeys, setRow, type ServerSession, type ServerSet } from '../syncMap';
 
 const U = '00000000-0000-4000-8000-000000000001';
 
@@ -186,7 +186,7 @@ test('linking a new phone merges safety settings in the safe direction', () => {
 test('applying a backup links the phone and never duplicates sets', () => {
   const s = withIds(base());
   const opA = s.sync.ids[idKey.session('a')]!;
-  const data = { sessions: [serverSession(opA, 'a')], sets: [serverSet('s1', opA), serverSet('s7', opA)], checkIns: [], meals: [], items: [], saved: [], profile: null, preferences: null, restrictions: [] };
+  const data = { sessions: [serverSession(opA, 'a')], sets: [serverSet('s1', opA), serverSet('s7', opA)], checkIns: [], meals: [], items: [], saved: [], profile: null, preferences: null, restrictions: [], weights: [] };
   const once = applyBackup(s, data, U);
   const twice = applyBackup(once, data, U);
   assert.equal(once.sync.linkedUserId, U);
@@ -230,4 +230,21 @@ test('the in-progress workout is sent after the one it replaced', () => {
   const rows = buildPush(s, U).sessions as { status: string }[];
   assert.equal(rows[rows.length - 1]!.status, 'in_progress');
   assert.equal(rows.filter((r) => r.status === 'in_progress').length, 1);
+});
+
+test('weigh-ins back up with their own IDs, edits update them, and deleted ones never come back', () => {
+  const s = base();
+  s.weights = [{ id: 'w1', kg: 80.2, at: '2026-10-18T02:00:00.000Z', day: '2026-10-18' }, { id: 'w2', kg: 79.9, at: '2026-10-19T02:00:00.000Z', day: '2026-10-19' }];
+  s.sync.deleted = ['progress_entries:w2'];
+  const rows = buildPush(s, U).weights as { client_op_id: string; metric: string; value: number }[];
+  assert.deepEqual(rows.map((r) => [r.client_op_id, r.metric, r.value]), [['w1', 'weight_kg', 80.2]]);
+  const merged = mergeWeights(s, [
+    { client_op_id: 'w1', value: 80.2, measured_at: '2026-10-18T02:00:00.000Z' },
+    { client_op_id: 'w2', value: 79.9, measured_at: '2026-10-19T02:00:00.000Z' },
+    { client_op_id: 'w3', value: 79.5, measured_at: '2026-10-19T19:00:00.000Z' },
+  ]);
+  assert.deepEqual(merged.map((w) => w.id).sort(), ['w1', 'w2', 'w3'], 'w2 is still on the phone; w3 is new');
+  const afterDelete = mergeWeights({ ...s, weights: s.weights.filter((w) => w.id !== 'w2') }, [{ client_op_id: 'w2', value: 79.9, measured_at: '2026-10-19T02:00:00.000Z' }]);
+  assert.ok(!afterDelete.some((w) => w.id === 'w2'));
+  assert.equal(merged.find((w) => w.id === 'w3')!.day, '2026-10-19', 'a 00:30 India-time weigh-in belongs to the evening before (04:00 day rule)');
 });

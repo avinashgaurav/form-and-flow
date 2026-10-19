@@ -243,3 +243,8 @@ test('one row per limit, so limits can be upserted', async () => {
 test('signed-out clients can read nothing', async () => {
   await rejects(db.transaction(async (tx) => { await tx.exec('set local role anon'); await tx.query('select * from profiles'); }), /permission denied/);
 });
+
+test('a meal can be logged from a photo, and unknown sources are still refused', async () => {
+  await asUser(A, (tx) => tx.query(`insert into meal_logs (user_id, eaten_at, day, tz, meal_type, source, client_op_id) values ($1, now(), '2026-10-19', 'Asia/Kolkata', 'dinner', 'photo', gen_random_uuid())`, [A]));
+  await rejects(asUser(A, (tx) => tx.query(`insert into meal_logs (user_id, eaten_at, day, tz, meal_type, source, client_op_id) values ($1, now(), '2026-10-19', 'Asia/Kolkata', 'dinner', 'guess', gen_random_uuid())`, [A])), /check constraint/);
+});

@@ -7,7 +7,7 @@ import { backendConfigured, supabase } from '../src/lib/backend';
 import { shareJson } from '../src/lib/share';
 import { remindersSupported, requestReminderPermission } from '../src/lib/notify';
 import { newId, useStore } from '../src/store/store';
-import type { ProblemReport } from '../src/store/types';
+import { AI_NOTICE, NOTICE_VERSION, type ProblemReport } from '../src/store/types';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Chip, ChipGroup, Field, Row, Screen, T } from '../src/ui';
 
@@ -152,8 +152,10 @@ export default function Settings() {
         <Chip
           label={state.consents?.aiProcessing ? 'AI processing allowed' : 'AI processing not allowed'}
           selected={!!state.consents?.aiProcessing}
-          onPress={() => state.consents && dispatch({ type: 'patch', patch: { consents: { ...state.consents, aiProcessing: !state.consents.aiProcessing, at: new Date().toISOString() } } })}
+          // Changing the choice re-records consent under the current notice.
+          onPress={() => state.consents && dispatch({ type: 'patch', patch: { consents: { ...state.consents, aiProcessing: !state.consents.aiProcessing, version: NOTICE_VERSION, at: new Date().toISOString() } } })}
         />
+        <T v="small">{AI_NOTICE}</T>
         {state.consents?.aiProcessing && (
           <View style={{ gap: space.sm }}>
             <T v="label">AI model for coach wording</T>

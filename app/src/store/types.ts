@@ -1,6 +1,11 @@
-import { DEFAULT_COACH_MODEL, DEFAULT_REMINDERS, type AllergenTag, type CoachModelId, type Diet, type FoodRef, type FoodUnit, type LogSnapshot, type OilLevel, type Sex, type Answer, type Block, type Goal, type PlannedSession, type QuestionId, type ReadinessResult, type Region, type ReminderPrefs, type Restriction, type TrainingProfile, type WeekPlan } from '@ff/engines';
+import { DEFAULT_COACH_MODEL, DEFAULT_REMINDERS, type AllergenTag, type CoachModelId, type WeightEntry, type Diet, type FoodRef, type FoodUnit, type LogSnapshot, type OilLevel, type Sex, type Answer, type Block, type Goal, type PlannedSession, type QuestionId, type ReadinessResult, type Region, type ReminderPrefs, type Restriction, type TrainingProfile, type WeekPlan } from '@ff/engines';
 
-export const NOTICE_VERSION = 'notice-draft-2026-10-19';
+/** Bumped when the notice changes; .2 added meal photos to the AI section. */
+export const NOTICE_VERSION = 'notice-draft-2026-10-19.2';
+
+/** The AI paragraph of the notice, shown at setup, in Settings and before the first photo. */
+export const AI_NOTICE =
+  'If you allow it, two things go to Anthropic, our AI provider, which may process them outside India: a short summary of your plan to word coach replies (never your name or email), and meal photos you choose to send so it can name the foods. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.';
 
 export interface Profile {
   birthYear: number;
@@ -119,7 +124,7 @@ export interface MealLog {
   day: string;
   at: string;
   mealType: MealType;
-  source: 'search' | 'text_parse' | 'saved_meal';
+  source: 'search' | 'text_parse' | 'saved_meal' | 'photo';
   items: MealItem[];
   /** Set when the meal is edited, so backup sends it again. */
   updatedAt?: string;
@@ -225,6 +230,10 @@ export interface AppState {
   meals: MealLog[];
   savedMeals: SavedMeal[];
   nutrition: NutritionPrefs;
+  /** Weigh-ins (S26). Kept even if tracking is turned off later; shown only while it is on. */
+  weights: WeightEntry[];
+  /** Optional tracking. Weight is off until the user turns it on (plan/14 RK-09). */
+  tracking: { weight: boolean };
   /** Set while signed in to backup. The session itself lives in the auth storage, not here. */
   account?: { userId: string; email: string };
   sync: SyncState;
@@ -260,5 +269,7 @@ export const initialState = (): AppState => ({
   coachModel: DEFAULT_COACH_MODEL,
   meals: [],
   savedMeals: [],
+  weights: [],
+  tracking: { weight: false },
   nutrition: { mode: 'numeric', allergens: [], freeTextAllergies: [] },
 });
