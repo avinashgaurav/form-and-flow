@@ -1,15 +1,18 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { COACH_MODELS } from '@ff/engines';
+import { COACH_MODELS, shortDay } from '@ff/engines';
+import { TONE_NAME, limitText } from '../src/lib/limits';
 import { addDays, makePlan, todayKey } from '../src/lib/plan';
 import { backendConfigured, supabase } from '../src/lib/backend';
 import { shareJson } from '../src/lib/share';
 import { remindersSupported, requestReminderPermission } from '../src/lib/notify';
 import { newId, useStore } from '../src/store/store';
-import { AI_NOTICE, NOTICE_VERSION, type ProblemReport } from '../src/store/types';
+import { AI_NOTICE, NOTICE_VERSION, type Profile, type ProblemReport } from '../src/store/types';
 import { color, space } from '../src/theme';
-import { Banner, Button, Card, Chip, ChipGroup, Field, Row, Screen, T } from '../src/ui';
+import { Banner, Button, Card, Chip, ChipGroup, Field, Row, Screen, T, Toggle } from '../src/ui';
+
+const TONES = (Object.keys(TONE_NAME) as Profile['tone'][]).map((value) => ({ value, label: TONE_NAME[value] }));
 
 const REPORT_KINDS: { value: ProblemReport['kind']; label: string }[] = [
   { value: 'unsafe_advice', label: 'Unsafe or wrong advice' },
@@ -74,7 +77,7 @@ export default function Settings() {
           <T v="small">No limits are active.</T>
         ) : (
           state.restrictions.map((r) => (
-            <T key={r.code} v="small" style={{ color: color.ink }}>{`${r.code.replace('region:', 'Leave out: ').replace(/_/g, ' ')}${r.expiresAt ? ` (until ${r.expiresAt})` : ''}`}</T>
+            <T key={r.code} v="small" style={{ color: color.ink }}>{limitText(r)}</T>
           ))
         )}
         {hasRedFlag && !confirmCleared && <Button label="A doctor has checked me" kind="secondary" onPress={() => setConfirmCleared(true)} />}
@@ -92,11 +95,11 @@ export default function Settings() {
         <T v="small">Off unless you turn them on. Never during quiet hours ({state.reminders.quietStart} to {state.reminders.quietEnd}), never for a session you have done, at most 5 a week.</T>
         {!remindersSupported && <T v="small">Reminders work in the phone app, not in this web preview.</T>}
         {permissionDenied && <Banner tone="info" title="Notifications are off for this app" body="Everything still works. You can allow notifications in your phone settings at any time." />}
-        <Chip
-          label={state.reminders.enabled ? 'Reminders on' : 'Reminders off'}
-          selected={state.reminders.enabled}
-          onPress={async () => {
-            if (state.reminders.enabled) return dispatch({ type: 'patch', patch: { reminders: { ...state.reminders, enabled: false } } });
+        <Toggle
+          label="Reminders"
+          value={state.reminders.enabled}
+          onChange={async (on) => {
+            if (!on) return dispatch({ type: 'patch', patch: { reminders: { ...state.reminders, enabled: false } } });
             const granted = remindersSupported ? await requestReminderPermission() : true;
             setPermissionDenied(!granted);
             dispatch({ type: 'patch', patch: { reminders: { ...state.reminders, enabled: true } } });
@@ -112,12 +115,18 @@ export default function Settings() {
             <T v="label">Session reminder time</T>
             <ChipGroup options={['07:00', '12:00', '18:00', '20:00'].map((t) => ({ value: t, label: t }))} value={state.reminders.sessionTime} onChange={(sessionTime) => dispatch({ type: 'patch', patch: { reminders: { ...state.reminders, sessionTime } } })} />
             <Button
-              label={state.reminders.pausedUntil && state.reminders.pausedUntil > today ? `Paused until ${state.reminders.pausedUntil}. Resume now` : 'Pause for 7 days'}
+              label={state.reminders.pausedUntil && state.reminders.pausedUntil > today ? `Paused until ${shortDay(state.reminders.pausedUntil)}. Resume now` : 'Pause for 7 days'}
               kind="secondary"
               onPress={() => dispatch({ type: 'patch', patch: { reminders: { ...state.reminders, pausedUntil: state.reminders.pausedUntil && state.reminders.pausedUntil > today ? undefined : addDays(today, 7) } } })}
             />
           </View>
         )}
+      </Card>
+
+      <Card>
+        <T v="h2">Coach style</T>
+        <ChipGroup options={TONES} value={state.profile?.tone} onChange={(tone) => state.profile && dispatch({ type: 'patch', patch: { profile: { ...state.profile, tone } } })} />
+        <T v="small">Changes the wording only, never the safety rules.</T>
       </Card>
 
       <Card>
@@ -148,12 +157,12 @@ export default function Settings() {
 
       <Card>
         <T v="h2">Privacy</T>
-        <T v="small">{`Data use agreed: ${state.consents?.at.slice(0, 10) ?? 'not yet'} (notice ${state.consents?.version ?? '-'}). ${state.account ? 'Stored on this phone and in your backup.' : 'Stored on this phone only.'} AI coach wording needs both backup and AI processing on; the AI never sees other people's data.`}</T>
-        <Chip
-          label={state.consents?.aiProcessing ? 'AI processing allowed' : 'AI processing not allowed'}
-          selected={!!state.consents?.aiProcessing}
+        <T v="small">{`${state.consents ? `Your data choices were last updated on ${new Date(state.consents.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}. ` : ''}${state.account ? 'Your data is on this phone and in your backup.' : 'Your data is on this phone only.'}`}</T>
+        <Toggle
+          label="AI coach wording and meal photos"
+          value={!!state.consents?.aiProcessing}
           // Changing the choice re-records consent under the current notice.
-          onPress={() => state.consents && dispatch({ type: 'patch', patch: { consents: { ...state.consents, aiProcessing: !state.consents.aiProcessing, version: NOTICE_VERSION, at: new Date().toISOString() } } })}
+          onChange={(on) => state.consents && dispatch({ type: 'patch', patch: { consents: { ...state.consents, aiProcessing: on, version: NOTICE_VERSION, at: new Date().toISOString() } } })}
         />
         <T v="small">{AI_NOTICE}</T>
         {state.consents?.aiProcessing && (

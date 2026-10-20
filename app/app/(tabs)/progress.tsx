@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Bars, TrendChart } from '../../src/charts';
 import { foodDays, numericMode, targetsFor } from '../../src/lib/food';
-import { addDays, currentPlan, exerciseName, mondayOf, todayKey } from '../../src/lib/plan';
+import { addDays, currentPlan, exerciseName, mondayOf, todayIndex, todayKey } from '../../src/lib/plan';
 import { newId, useStore } from '../../src/store/store';
 import { color, space } from '../../src/theme';
 import { Bar, Banner, Button, Card, EmptyState, Field, Row, Screen, T } from '../../src/ui';
@@ -22,6 +22,15 @@ export default function Progress() {
   const plan = currentPlan(state);
   const planned = plan?.week.sessions.length ?? 0;
   const doneThisWeek = plan?.week.sessions.filter((s) => state.sessions[s.id]?.status === 'completed').length ?? 0;
+  const dayIdx = todayIndex(state);
+  const nextUp = plan?.week.sessions.find((s) => s.day >= dayIdx && state.sessions[s.id]?.status !== 'completed' && state.sessions[s.id]?.status !== 'partial');
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  // The one line to read: where the week stands and what is next.
+  const headline = planned === 0
+    ? 'No workouts planned this week.'
+    : doneThisWeek >= planned
+      ? `All ${planned} workouts done this week. Nice work.`
+      : `${doneThisWeek} of ${planned} workouts done this week.${nextUp ? ` Next: ${nextUp.day === dayIdx ? 'today' : DAYS[nextUp.day]}.` : ''}`;
   const last7 = [6, 5, 4, 3, 2, 1, 0].map((n) => addDays(today, -n));
   const food = foodDays(state, last7);
   const numeric = numericMode(state);
@@ -110,6 +119,7 @@ export default function Progress() {
   return (
     <Screen>
       <T v="title">Progress</T>
+      <T v="h2">{headline}</T>
 
       <Card>
         <T v="h2">This week</T>
@@ -128,7 +138,6 @@ export default function Progress() {
           <T v="small">Check-ins (last 7 days)</T>
           <T v="num">{String(checkInDays)}</T>
         </Row>
-        <T v="small">Rest days count as part of the plan, not as misses.</T>
         <Button label="Weekly review" kind="secondary" onPress={() => router.push('/review')} />
       </Card>
 
@@ -138,7 +147,7 @@ export default function Progress() {
           bars={weeks.map((w) => ({ label: shortDate(w.weekStart).split(' ')[0]!, value: w.count }))}
           summary={`Completed workouts per week, last 8 weeks: ${weeks.map((w) => `week of ${shortDate(w.weekStart)}, ${w.count}`).join('; ')}.`}
         />
-        <T v="small">Weeks start on Monday. Labels show the date each week starts.</T>
+        <T v="small">Each bar is one week, labelled with the date its Monday falls on.</T>
       </Card>
 
       <Card>
@@ -152,13 +161,10 @@ export default function Progress() {
               band={targets.energy ? [targets.energy.displayKcal.low, targets.energy.displayKcal.high] : undefined}
               summary={`Logged energy per day: ${food.map((d) => `${shortDate(d.day)}, ${d.energyKcal === null ? 'nothing logged' : `${d.energyKcal} kcal`}`).join('; ')}.`}
             />
-            <T v="small">
-              {targets.energy ? `Green band: your guide of ${targets.energy.displayKcal.low.toLocaleString('en-IN')} to ${targets.energy.displayKcal.high.toLocaleString('en-IN')} kcal. ` : ''}
-              Light bars had one meal logged or a missing value, so they show less than you ate.
-            </T>
+            <T v="small">{targets.energy ? 'Green band: your guide. Pale bars: days only partly logged.' : 'Pale bars: days only partly logged.'}</T>
             {avgProtein !== null && (
               <T v="small" style={{ color: color.ink }}>
-                {`Protein on ${fullDays.length === 1 ? 'the one day' : `the ${fullDays.length} days`} with two or more meals logged: about ${avgProtein} g${fullDays.length === 1 ? '' : ' a day'}${targets.protein?.grams.high ? ` (guide ${targets.protein.grams.low} to ${targets.protein.grams.high} g a day)` : ''}.`}
+                {`Protein on fully logged days: about ${avgProtein} g${targets.protein?.grams.high ? ` (guide ${targets.protein.grams.low} to ${targets.protein.grams.high} g)` : ''}.`}
               </T>
             )}
           </>

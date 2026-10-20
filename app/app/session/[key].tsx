@@ -1,15 +1,26 @@
 import { getExercise, substitutes, shortenSession, type Block } from '@ff/engines';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Icon } from '../../src/icons';
 import { ExerciseVideo } from '../../src/media/ExerciseVideo';
 import { effectiveSession, exerciseName, plannedFor, plural, setsFor, suggestion } from '../../src/lib/plan';
 import { newId, useStore } from '../../src/store/store';
 import { color, space } from '../../src/theme';
-import { Banner, Button, Card, ChipGroup, EmptyState, Eyebrow, Row, Screen, Stepper, T } from '../../src/ui';
+import { Banner, Button, Card, Chip, ChipGroup, EmptyState, Eyebrow, Row, Screen, Stepper, T } from '../../src/ui';
 
-const target = (b: Block) => `${b.sets} × ${b.repMin} to ${b.repMax} ${b.unit === 'seconds' ? 'sec' : 'reps'} · rest ${b.restSec}s · ${b.targetRir}+ in reserve`;
+/** The target in plain words: "3 sets of 8 to 12 reps · rest 90 s · stop with 2 reps to spare". */
+const spare = (b: Block) => (b.unit === 'seconds' ? 'stop before your form slips' : `stop with ${b.targetRir} ${b.targetRir === 1 ? 'rep' : 'reps'} to spare`);
+const target = (b: Block) => `${b.sets} sets of ${b.repMin} to ${b.repMax} ${b.unit === 'seconds' ? 'seconds' : 'reps'} · rest ${b.restSec} s · ${spare(b)}`;
+
+/** How a set felt, stored as reps left in the tank (the progression rules read that number). */
+const FEEL = [
+  { value: 4, label: 'Easy' },
+  { value: 2, label: 'Just right' },
+  { value: 0, label: 'Hard' },
+];
+const SESSION_FEEL = { too_easy: 'too easy', right: 'about right', too_hard: 'too hard' } as const;
+const feltWord = (rir: number) => (rir >= 3 ? 'easy' : rir >= 1 ? 'just right' : 'hard');
 
 export default function SessionScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
@@ -27,23 +38,26 @@ export default function SessionScreen() {
 
   const session = effectiveSession(planned, log);
   const status = log?.status;
-
-  return (
-    <Screen>
+  const header = (
+    <>
       <Row style={{ justifyContent: 'space-between' }}>
         <Button label="Back" kind="ghost" icon="back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
         <T v="label">{status === 'in_progress' ? 'In progress' : status === 'completed' ? 'Completed' : status === 'partial' ? 'Ended early' : 'Overview'}</T>
       </Row>
       <T v="h1">{session.title}</T>
-      {status === 'in_progress' ? (
-        <Player sessionKey={key} />
-      ) : status === 'completed' || status === 'partial' ? (
-        <Summary sessionKey={key} />
-      ) : (
-        <Overview sessionKey={key} />
-      )}
-    </Screen>
+    </>
   );
+
+  if (status === 'in_progress') return <Player sessionKey={key} header={header} />;
+  if (status === 'completed' || status === 'partial') {
+    return (
+      <Screen>
+        {header}
+        <Summary sessionKey={key} />
+      </Screen>
+    );
+  }
+  return <Overview sessionKey={key} header={header} />;
 }
 
 function useSession(key: string) {
@@ -53,14 +67,16 @@ function useSession(key: string) {
   return { planned, log, session: effectiveSession(planned, log) };
 }
 
-function Overview({ sessionKey }: { sessionKey: string }) {
+function Overview({ sessionKey, header }: { sessionKey: string; header: ReactNode }) {
   const { state, dispatch } = useStore();
   const { planned, log, session } = useSession(sessionKey);
   const [swapFor, setSwapFor] = useState<string | null>(null);
   const profile = state.profile!;
 
+  const start = () => dispatch({ type: 'session', key: sessionKey, patch: { status: 'in_progress', startedAt: new Date().toISOString(), swaps: log?.swaps ?? {}, planned } });
   return (
-    <View style={{ gap: space.lg }}>
+    <Screen footer={<Button label={`Start session · about ${session.estimatedMinutes} min`} tall onPress={start} />}>
+      {header}
       <T v="small">{`About ${session.estimatedMinutes} min${log?.shortened ? ` (shortened to ${log.shortened.minutes})` : ''}`}</T>
       <Card tone="sunken">
         <T v="label">Warm-up</T>
@@ -108,12 +124,11 @@ function Overview({ sessionKey }: { sessionKey: string }) {
         />
         <T v="small">Shortening keeps the warm-up and the main lift and never makes it harder.</T>
       </Card>
-      <Button label="Start session" tall onPress={() => dispatch({ type: 'session', key: sessionKey, patch: { status: 'in_progress', startedAt: new Date().toISOString(), swaps: log?.swaps ?? {}, planned } })} />
-    </View>
+    </Screen>
   );
 }
 
-function Player({ sessionKey }: { sessionKey: string }) {
+function Player({ sessionKey, header }: { sessionKey: string; header: ReactNode }) {
   const { state } = useStore();
   const { planned, log, session } = useSession(sessionKey);
   const blocks = session.blocks;
@@ -122,12 +137,19 @@ function Player({ sessionKey }: { sessionKey: string }) {
   const idx = blocks.findIndex((b, i) => doneCounts[i]! < b.sets && !skipped.includes(b.exerciseId));
   const block = idx >= 0 ? blocks[idx] : undefined;
 
-  if (!block) return <Finish sessionKey={sessionKey} />;
+  if (!block) {
+    return (
+      <Screen>
+        {header}
+        <Finish sessionKey={sessionKey} />
+      </Screen>
+    );
+  }
   const originalId = (log?.shortened?.blocks ?? planned.blocks)[idx]?.exerciseId ?? block.exerciseId;
-  return <BlockView key={block.exerciseId} sessionKey={sessionKey} block={block} originalId={originalId} position={`${idx + 1} of ${blocks.length}`} onSkip={() => setSkipped([...skipped, block.exerciseId])} />;
+  return <BlockView key={block.exerciseId} header={header} sessionKey={sessionKey} block={block} originalId={originalId} position={`${idx + 1} of ${blocks.length}`} onSkip={() => setSkipped([...skipped, block.exerciseId])} />;
 }
 
-function BlockView({ sessionKey, block, originalId, position, onSkip }: { sessionKey: string; block: Block; originalId: string; position: string; onSkip: () => void }) {
+function BlockView({ header, sessionKey, block, originalId, position, onSkip }: { header: ReactNode; sessionKey: string; block: Block; originalId: string; position: string; onSkip: () => void }) {
   const { state, dispatch, logSet, removeSet } = useStore();
   const ex = getExercise(block.exerciseId);
   const done = setsFor(state.sets, sessionKey, block.exerciseId);
@@ -139,10 +161,17 @@ function BlockView({ sessionKey, block, originalId, position, onSkip }: { sessio
   const [pendingId, setPendingId] = useState(newId);
   const [restUntil, setRestUntil] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [showCues, setShowCues] = useState(true);
+  // Cues are open for the first set and fold away once the move is under way.
+  const [showCues, setShowCues] = useState(done.length === 0);
+  const [showMore, setShowMore] = useState(false);
   const [showSwap, setShowSwap] = useState(false);
   const profile = state.profile!;
   const subs = showSwap ? substitutes(block.exerciseId, { equipment: profile.training.equipment, restrictions: state.restrictions, experience: profile.training.experience }) : [];
+  const unitWord = block.unit === 'seconds' ? 'Seconds' : 'Reps';
+
+  useEffect(() => {
+    if (done.length === 1) setShowCues(false);
+  }, [done.length]);
 
   useEffect(() => {
     if (!restUntil) return;
@@ -165,15 +194,57 @@ function BlockView({ sessionKey, block, originalId, position, onSkip }: { sessio
     : sug.lastLoad > 0 ? `Last time ${sug.lastLoad} kg. ${sug.reason}`
     : 'First time: pick a weight you could lift 2 to 3 more times at the end of each set.';
 
+  // The pinned bar: during rest, the timer; otherwise this set's numbers and Done set.
+  // Each state has its own key, so switching between them remounts rather than patching styles.
+  const footer = restLeft > 0 ? (
+    <Row key="rest" style={{ justifyContent: 'space-between' }}>
+      <View>
+        <T v="label">Rest</T>
+        <T v="num" style={{ fontSize: 32, lineHeight: 36 }} accessibilityRole="text">{`${Math.floor(restLeft / 60)}:${String(restLeft % 60).padStart(2, '0')}`}</T>
+      </View>
+      <Button label="Skip rest" kind="secondary" onPress={() => setRestUntil(null)} />
+    </Row>
+  ) : (
+    <View key="set" style={{ gap: space.sm }}>
+      <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: space.xs }}>
+        <T v="label">{`Set ${done.length + 1} of ${block.sets}`}</T>
+        <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
+          {FEEL.map((f) => (
+            <Chip key={f.value} label={f.label} selected={rir === f.value} onPress={() => setRir(rir === f.value ? undefined : f.value)} accessibilityLabel={`This set felt ${f.label.toLowerCase()} (optional)`} />
+          ))}
+        </Row>
+      </Row>
+      <Row style={{ alignItems: 'flex-end', flexWrap: 'wrap', rowGap: space.sm }}>
+        <View style={{ gap: 2 }}>
+          <T v="small">{unitWord}</T>
+          <Stepper label={unitWord} value={reps} min={0} max={block.unit === 'seconds' ? 300 : 100} step={block.unit === 'seconds' ? 5 : 1} onChange={setReps} />
+        </View>
+        {ex?.loaded && (
+          <View style={{ gap: 2 }}>
+            <T v="small">Weight</T>
+            <Stepper label="Weight in kilograms" unit="kg" value={load} min={0} max={500} step={ex.allOf.includes('barbell') ? 2.5 : 0.5} onChange={setLoad} />
+          </View>
+        )}
+        {!ex?.loaded && (
+          <View style={{ flex: 1, minWidth: 140 }}>
+            <Button label="Done set" icon="check" tall onPress={doneSet} />
+          </View>
+        )}
+      </Row>
+      {ex?.loaded && <Button label="Done set" icon="check" tall onPress={doneSet} />}
+    </View>
+  );
+
   return (
-    <View style={{ gap: space.lg }}>
+    <Screen footer={footer}>
+      {header}
       <T v="label">{`Exercise ${position}`}</T>
       <Card>
         <ExerciseVideo key={block.exerciseId} exerciseId={block.exerciseId} name={ex?.name ?? block.exerciseId} />
         <T v="h1">{ex?.name ?? block.exerciseId}</T>
-        <T v="small">{`Target ${target(block)}`}</T>
+        <T v="small">{target(block)}</T>
         {ex?.reviewStatus === 'draft' && <Eyebrow>Draft cues, not yet reviewed</Eyebrow>}
-        <Button label={showCues ? 'Hide cues' : 'Show cues'} kind="ghost" onPress={() => setShowCues(!showCues)} />
+        <Button label={showCues ? 'Hide how to do it' : 'Show how to do it'} kind="ghost" onPress={() => setShowCues(!showCues)} />
         {showCues && ex && (
           <View style={{ gap: 4 }}>
             {ex.cues.map((c) => <T key={c} v="small" style={{ color: color.ink }}>{`• ${c}`}</T>)}
@@ -184,74 +255,46 @@ function BlockView({ sessionKey, block, originalId, position, onSkip }: { sessio
 
       <Banner tone="info" title={sugText} />
 
-      <View style={{ gap: space.sm }} accessibilityLabel="Logged sets">
-        {done.map((s) => (
-          <Row key={s.id} style={{ backgroundColor: color.okWash, borderRadius: 8, padding: space.sm, justifyContent: 'space-between' }}>
-            <Row>
-              <Icon name="check" size={18} stroke={color.ok} width={2.6} />
-              <T>{`Set ${s.setIndex}: ${s.reps}${block.unit === 'seconds' ? ' s' : ''}${ex?.loaded ? ` × ${s.loadKg} kg` : ''}${s.rir !== undefined ? ` · ${s.rir} left` : ''}`}</T>
+      {done.length > 0 && (
+        <View style={{ gap: space.sm }} accessibilityLabel="Logged sets">
+          {done.map((s) => (
+            <Row key={s.id} style={{ backgroundColor: color.okWash, borderRadius: 8, padding: space.sm, justifyContent: 'space-between' }}>
+              <Row>
+                <Icon name="check" size={18} stroke={color.ok} width={2.6} />
+                <T>{`Set ${s.setIndex}: ${s.reps}${block.unit === 'seconds' ? ' s' : ''}${ex?.loaded ? ` × ${s.loadKg} kg` : ''}${s.rir !== undefined ? ` · felt ${feltWord(s.rir)}` : ''}`}</T>
+              </Row>
+              <Row gap={4}>
+                <Icon name="saved" size={16} stroke={color.ok} />
+                <T v="small" style={{ color: color.ok }}>Saved</T>
+              </Row>
             </Row>
-            <Row gap={4}>
-              <Icon name="saved" size={16} stroke={color.ok} />
-              <T v="small" style={{ color: color.ok }}>Saved on phone</T>
-            </Row>
-          </Row>
-        ))}
-        {done.length > 0 && <Button label="Undo last set" kind="ghost" onPress={() => removeSet(done.at(-1)!.id)} />}
-      </View>
+          ))}
+          <Button label="Undo last set" kind="ghost" onPress={() => removeSet(done.at(-1)!.id)} />
+        </View>
+      )}
 
-      {restLeft > 0 ? (
+      <Button label="Something hurts" kind="ghost" icon="alert" onPress={() => router.push({ pathname: '/pain', params: { session: sessionKey } })} />
+      <Button label={showMore ? 'Fewer options' : 'More options'} kind="ghost" onPress={() => setShowMore(!showMore)} />
+      {showMore && (
         <Card tone="sunken">
-          <Row style={{ justifyContent: 'space-between' }}>
-            <T v="h2">Rest</T>
-            <T v="num" style={{ fontSize: 32, lineHeight: 36 }} accessibilityRole="text">{`${Math.floor(restLeft / 60)}:${String(restLeft % 60).padStart(2, '0')}`}</T>
-          </Row>
-          <Button label="Skip rest" kind="secondary" onPress={() => setRestUntil(null)} />
-        </Card>
-      ) : (
-        <Card>
-          <T v="label">{`Set ${done.length + 1} of ${block.sets}`}</T>
-          <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: space.md }}>
-            <View style={{ gap: 4 }}>
-              <T v="small">{block.unit === 'seconds' ? 'Seconds' : 'Reps'}</T>
-              <Stepper label={block.unit === 'seconds' ? 'Seconds' : 'Reps'} value={reps} min={0} max={block.unit === 'seconds' ? 300 : 100} step={block.unit === 'seconds' ? 5 : 1} onChange={setReps} />
+          <Button label="Swap this exercise" kind="secondary" icon="swap" onPress={() => setShowSwap(!showSwap)} />
+          {showSwap && (
+            <View style={{ gap: space.sm }}>
+              <T v="label">Alternatives that fit your equipment and limits</T>
+              {subs.length === 0 ? (
+                <T v="small">No safe alternative fits. You can skip this exercise instead.</T>
+              ) : (
+                subs.map((e) => (
+                  <Button key={e.id} label={e.name} kind="secondary" onPress={() => dispatch({ type: 'session', key: sessionKey, patch: { swaps: { ...(state.sessions[sessionKey]?.swaps ?? {}), [originalId]: e.id } } })} />
+                ))
+              )}
             </View>
-            {ex?.loaded && (
-              <View style={{ gap: 4 }}>
-                <T v="small">Load</T>
-                <Stepper label="Load in kilograms" unit="kg" value={load} min={0} max={500} step={ex.allOf.includes('barbell') ? 2.5 : 0.5} onChange={setLoad} />
-              </View>
-            )}
-          </Row>
-          <T v="small">Reps left in the tank (optional)</T>
-          <ChipGroup options={[0, 1, 2, 3, 4, 5].map((n) => ({ value: n, label: n === 5 ? '5+' : String(n) }))} value={rir} onChange={setRir} />
-          <Button label="Done set" icon="check" tall onPress={doneSet} />
-        </Card>
-      )}
-
-      <Row style={{ flexWrap: 'wrap' }}>
-        <View style={{ flex: 1, minWidth: 140 }}>
-          <Button label="Swap" kind="secondary" icon="swap" onPress={() => setShowSwap(!showSwap)} />
-        </View>
-        <View style={{ flex: 1, minWidth: 140 }}>
-          <Button label="Skip exercise" kind="secondary" onPress={onSkip} />
-        </View>
-      </Row>
-      {showSwap && (
-        <Card>
-          <T v="label">Alternatives that fit your equipment and limits</T>
-          {subs.length === 0 ? (
-            <T v="small">No safe alternative fits. You can skip this exercise instead.</T>
-          ) : (
-            subs.map((e) => (
-              <Button key={e.id} label={e.name} kind="secondary" onPress={() => dispatch({ type: 'session', key: sessionKey, patch: { swaps: { ...(state.sessions[sessionKey]?.swaps ?? {}), [originalId]: e.id } } })} />
-            ))
           )}
+          <Button label="Skip this exercise" kind="secondary" onPress={onSkip} />
+          <Button label="End session early" kind="secondary" onPress={() => dispatch({ type: 'session', key: sessionKey, patch: { status: 'partial', endedAt: new Date().toISOString() } })} />
         </Card>
       )}
-      <Button label="Something feels wrong?" kind="ghost" icon="alert" onPress={() => router.push({ pathname: '/pain', params: { session: sessionKey } })} />
-      <Button label="End session early" kind="ghost" onPress={() => dispatch({ type: 'session', key: sessionKey, patch: { status: 'partial', endedAt: new Date().toISOString() } })} />
-    </View>
+    </Screen>
   );
 }
 
@@ -285,7 +328,7 @@ function Summary({ sessionKey }: { sessionKey: string }) {
     <View style={{ gap: space.lg }}>
       <Card tone={log.status === 'completed' ? 'ok' : 'warn'}>
         <T v="h2">{log.status === 'completed' ? 'Session complete' : 'Ended early, and that is fine'}</T>
-        <T v="small" style={{ color: color.ink }}>{`${plural(sets.length, 'set')} across ${plural(byEx.length, 'exercise')}${log.feel ? ` · felt ${log.feel.replace('_', ' ')}` : ''}`}</T>
+        <T v="small" style={{ color: color.ink }}>{`${plural(sets.length, 'set')} across ${plural(byEx.length, 'exercise')}${log.feel ? ` · felt ${SESSION_FEEL[log.feel]}` : ''}`}</T>
       </Card>
       {byEx.map((id) => (
         <Card key={id}>

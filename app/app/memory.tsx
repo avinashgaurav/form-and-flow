@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { equipmentList } from '../src/lib/equipment';
+import { PLACE_NAME, TONE_NAME, limitText } from '../src/lib/limits';
 import { useStore } from '../src/store/store';
 import { color } from '../src/theme';
 import { Button, Card, Row, Screen, T } from '../src/ui';
@@ -17,12 +18,12 @@ export default function Memory() {
   const facts: [string, string][] = [
     ['Goal', GOAL[p.goal] ?? p.goal],
     ['Experience', EXP[p.training.experience] ?? p.training.experience],
-    ['Where you train', p.training.location],
+    ['Where you train', PLACE_NAME[p.training.location]],
     ['Equipment', equipmentList(p.training.equipment)],
     ['Days', p.training.daysAvailable.map((d) => DAY[d]).join(', ')],
     ['Session length', `${p.training.sessionMinutes} min`],
-    ['Coach tone', p.tone],
-    ['Limits', state.restrictions.map((r) => r.code.replace('region:', 'leave out ').replace(/_/g, ' ') + (r.expiresAt ? ` until ${r.expiresAt}` : '')).join(', ') || 'none'],
+    ['Coach style', TONE_NAME[p.tone]],
+    ['Limits', state.restrictions.map(limitText).join('; ') || 'none'],
     ['Messages kept', `${state.coachMessages.length} (deleted after 90 days)`],
   ];
   return (

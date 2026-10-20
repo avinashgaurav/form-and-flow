@@ -2,6 +2,7 @@ import { weeklyReview, type ProposedChange } from '@ff/engines';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { addDays, currentPlan, mondayOf, todayIndex, todayKey, weeksSinceDeload } from '../src/lib/plan';
+import { shortDate } from '../src/lib/limits';
 import { newId, useStore } from '../src/store/store';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Eyebrow, Row, Screen, T } from '../src/ui';
@@ -92,7 +93,6 @@ export default function Review() {
               <Eyebrow>Proposed change</Eyebrow>
               <T v="h2">{c.title}</T>
               <T v="small" style={{ color: color.ink }}>{c.reason}</T>
-              <T v="small">{`Rule ${c.ruleIds.join(', ')}`}</T>
               <Row>
                 <View style={{ flex: 1 }}>
                   <Button label="Accept" onPress={() => decide(c, 'accepted')} />
@@ -110,7 +110,7 @@ export default function Review() {
         <Card tone="sunken">
           <T v="label">Change history</T>
           {[...state.planChanges].reverse().slice(0, 6).map((c) => (
-            <T key={c.id} v="small" style={{ color: color.ink }}>{`${c.at.slice(0, 10)}: ${c.title} (${c.decision}, ${c.ruleIds.join(', ')})`}</T>
+            <T key={c.id} v="small" style={{ color: color.ink }}>{`${shortDate(c.at)}: ${c.title} (${c.decision === 'accepted' ? 'accepted' : 'not now'})`}</T>
           ))}
         </Card>
       )}

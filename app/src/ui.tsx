@@ -17,7 +17,7 @@ const textStyles: Record<Variant, TextStyle> = {
   num: { fontFamily: font.bold, fontSize: 20, lineHeight: 24, color: color.ink, fontVariant: ['tabular-nums'] },
 };
 
-export function T({ v = 'body', style, children, ...rest }: { v?: Variant; style?: StyleProp<TextStyle>; children: ReactNode; accessibilityRole?: 'header' | 'text'; numberOfLines?: number; selectable?: boolean }) {
+export function T({ v = 'body', style, children, ...rest }: { v?: Variant; style?: StyleProp<TextStyle>; children: ReactNode; accessibilityRole?: 'header' | 'text' | 'alert'; numberOfLines?: number; selectable?: boolean }) {
   return (
     <Text style={[textStyles[v], style]} accessibilityRole={rest.accessibilityRole ?? (v === 'title' || v === 'h1' ? 'header' : undefined)} {...rest}>
       {children}
@@ -27,11 +27,14 @@ export function T({ v = 'body', style, children, ...rest }: { v?: Variant; style
 
 /* ---------- Layout ---------- */
 
-export function Screen({ children, scroll = true, padded = true }: { children: ReactNode; scroll?: boolean; padded?: boolean }) {
+/** A screen. `footer` stays pinned at the bottom, outside the scroll, for the one action that matters. */
+export function Screen({ children, scroll = true, padded = true, footer }: { children: ReactNode; scroll?: boolean; padded?: boolean; footer?: ReactNode }) {
   const inner = <View style={[{ gap: space.lg }, padded && { padding: space.lg, paddingBottom: space.xxl }]}>{children}</View>;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: color.canvas }} edges={['top', 'left', 'right']}>
-      {scroll ? <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">{inner}</ScrollView> : inner}
+      {scroll ? <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">{inner}</ScrollView> : inner}
+      {/* The footer pads itself for the home indicator, so its surface runs to the bottom edge. */}
+      {footer && <SafeAreaView edges={['bottom']} style={s.footer}>{footer}</SafeAreaView>}
     </SafeAreaView>
   );
 }
@@ -101,6 +104,32 @@ export function Chip({ label, selected, onPress, accessibilityLabel }: { label: 
       hitSlop={6}
     >
       <Text style={[s.chipText, selected && { color: color.onPrimary }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** An on/off setting: a fixed label, the current state in words, and a switch. Tapping anywhere flips it. */
+export function Toggle({ label, value, onChange, hint }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string }) {
+  return (
+    <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityHint={hint} accessibilityState={{ checked: value }} onPress={() => onChange(!value)} style={s.toggleRow} hitSlop={4}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={s.toggleLabel}>{label}</Text>
+        {hint && <T v="small">{hint}</T>}
+      </View>
+      <Text style={[s.toggleState, value && { color: color.primary }]}>{value ? 'On' : 'Off'}</Text>
+      <View style={[s.track, value && { backgroundColor: color.primary }]}>
+        <View style={[s.knob, value && { alignSelf: 'flex-end' }]} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** A tick box with its sentence beside it, for agreeing to something. */
+export function Checkbox({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{ checked: value }} onPress={() => onChange(!value)} style={s.checkRow} hitSlop={4}>
+      <View style={[s.box, value && { backgroundColor: color.primary }]}>{value && <Icon name="check" size={18} stroke={color.onPrimary} width={2.6} />}</View>
+      <Text style={s.toggleLabel}>{label}</Text>
     </Pressable>
   );
 }
@@ -221,4 +250,12 @@ const s = StyleSheet.create({
   bar: { height: 14, borderRadius: 99, borderWidth: BORDER, borderColor: color.line, backgroundColor: color.sunken, overflow: 'hidden' },
   band: { position: 'absolute', top: 0, bottom: 0, backgroundColor: color.lineSoft },
   fill: { position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: color.primary },
+  footer: { borderTopWidth: BORDER, borderTopColor: color.line, backgroundColor: color.surface, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.sm, gap: space.sm },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: MIN_TOUCH },
+  toggleLabel: { flex: 1, fontFamily: font.semibold, fontSize: 15, color: color.ink },
+  toggleState: { fontFamily: font.bold, fontSize: 13, color: color.muted },
+  track: { width: 52, height: 30, borderRadius: 15, borderWidth: BORDER, borderColor: color.line, backgroundColor: color.sunken, padding: 2, justifyContent: 'center' },
+  knob: { width: 22, height: 22, borderRadius: 11, borderWidth: BORDER, borderColor: color.line, backgroundColor: color.surface },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: MIN_TOUCH },
+  box: { width: 28, height: 28, borderRadius: 6, borderWidth: BORDER, borderColor: color.line, backgroundColor: color.surface, alignItems: 'center', justifyContent: 'center' },
 });

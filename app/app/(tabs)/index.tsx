@@ -3,12 +3,14 @@ import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { Icon } from '../../src/icons';
 import { mealsOn } from '../../src/lib/food';
+import { sentence } from '../../src/lib/limits';
 import { currentPlan, daysSinceLastWorkout, effectiveSession, plural, todayIndex, todayKey } from '../../src/lib/plan';
 import { useStore } from '../../src/store/store';
-import { BORDER, color, space } from '../../src/theme';
+import { BORDER, color } from '../../src/theme';
 import { Banner, Button, Card, ChipGroup, Eyebrow, Row, Screen, T } from '../../src/ui';
 
-const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const ENERGY = ['Drained', 'Low', 'OK', 'Good', 'Great'].map((label, i) => ({ value: i + 1, label }));
 
 export default function Today() {
   const { state, dispatch } = useStore();
@@ -24,6 +26,8 @@ export default function Today() {
   const nextSession = plan?.week.sessions.find((s) => s.day > dayIdx);
   const gap = daysSinceLastWorkout(state, today);
   const paused = plan?.week.paused || state.restrictions.some((r) => r.code === 'red_flag');
+  // A session still to do today: the check-in (energy, time, pain) only helps on those days.
+  const trainingToday = !paused && !!session && (!log || log.status === 'planned' || log.status === 'in_progress');
 
   const dateLabel = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'short', timeZone: profile.timezone }).format(new Date());
 
@@ -61,7 +65,7 @@ export default function Today() {
           </T>
           <Button label="Review safety answers" kind="secondary" onPress={() => router.push('/settings')} />
         </Card>
-      ) : session && (!log || log.status === 'planned' || log.status === 'in_progress') ? (
+      ) : trainingToday && session ? (
         <Card>
           <Eyebrow>{log?.status === 'in_progress' ? 'In progress' : 'Next up'}</Eyebrow>
           <T v="h1">{session.title}</T>
@@ -69,7 +73,7 @@ export default function Today() {
           {gap !== null && gap >= 7 && <Banner tone="info" title="Welcome back" body="Here is a lighter session to restart. No catching up needed." />}
           <Row style={{ alignItems: 'flex-start' }}>
             <Icon name="info" size={16} stroke={color.muted} />
-            <T v="small" style={{ flex: 1 }}>{plan!.week.reasons[0]?.text ?? ''}. Every change shows its reason.</T>
+            <T v="small" style={{ flex: 1 }}>{`${plan!.week.reasons[0] ? `${sentence(plan!.week.reasons[0].text)} ` : ''}Every change shows its reason.`}</T>
           </Row>
           <Button label={log?.status === 'in_progress' ? 'Resume session' : 'Start session'} onPress={() => router.push({ pathname: '/session/[key]', params: { key: session.id } })} tall />
         </Card>
@@ -81,13 +85,14 @@ export default function Today() {
         </Card>
       )}
 
+      {trainingToday && (
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           <T v="h2">How is today?</T>
           <T v="small">3 taps</T>
         </Row>
         <T v="label">Energy</T>
-        <ChipGroup options={[1, 2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }))} value={checkIn?.energy} onChange={(energy) => setCheckIn({ energy })} />
+        <ChipGroup options={ENERGY} value={checkIn?.energy} onChange={(energy) => setCheckIn({ energy })} />
         <T v="label">Time today</T>
         <ChipGroup options={[10, 15, 20, 30, 45, 60].map((n) => ({ value: n, label: `${n} min` }))} value={checkIn?.minutes} onChange={(minutes) => setCheckIn({ minutes })} />
         <T v="label">Any pain?</T>
@@ -106,27 +111,10 @@ export default function Today() {
           <Button label={`Shorten today to ${checkIn.minutes} min`} kind="secondary" icon="timer" onPress={() => planned && applyShorten(planned, checkIn.minutes!)} />
         )}
       </Card>
+      )}
 
-      <View accessibilityLabel="This week" style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        {DAY.map((label, i) => {
-          const s = plan?.week.sessions.find((x) => x.day === i);
-          const done = s && state.sessions[s.id]?.status === 'completed';
-          const isToday = i === dayIdx;
-          return (
-            <View key={label} style={{ alignItems: 'center', gap: 4 }} accessibilityLabel={`${label}: ${done ? 'done' : s ? 'training' : 'rest'}${isToday ? ', today' : ''}`}>
-              <View
-                style={{
-                  width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
-                  borderWidth: BORDER, borderStyle: s ? 'solid' : 'dashed', borderColor: color.line,
-                  backgroundColor: isToday ? color.primary : done ? color.okWash : s ? color.surface : 'transparent',
-                }}
-              >
-                {done ? <Icon name="check" size={18} stroke={color.ok} width={2.6} /> : <T v="small" style={{ color: isToday ? color.onPrimary : color.ink }}>{label.slice(0, 1)}</T>}
-              </View>
-            </View>
-          );
-        })}
-      </View>
+      {/* On days without the check-in, pain still has a way in. */}
+      {!trainingToday && <Button label="Something hurts" kind="ghost" icon="alert" onPress={() => router.push('/pain')} />}
 
       {dayIdx >= 5 && !paused && (
         <Card>
@@ -145,7 +133,7 @@ export default function Today() {
             return n ? `${n} ${n === 1 ? 'meal' : 'meals'} logged today.` : 'Nothing logged yet today. Logging some meals is enough.';
           })()}
         </T>
-        <Button label="Log a meal" kind="secondary" onPress={() => router.push('/meal')} />
+        <Button label="Log a meal" kind={trainingToday ? 'secondary' : 'primary'} onPress={() => router.push('/meal')} />
       </Card>
     </Screen>
   );

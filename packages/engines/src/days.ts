@@ -52,3 +52,11 @@ export function daysBetween(a: string, b: string): number {
   const tb = Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1, Number(b.slice(8, 10)));
   return Math.round((tb - ta) / 86_400_000);
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2026-10-26" as "26 Oct", for sentences people read. */
+export function shortDay(isoDay: string): string {
+  const [, m, d] = isoDay.slice(0, 10).split('-').map(Number);
+  return m && m <= 12 && d ? `${d} ${MONTHS[m - 1]}` : isoDay;
+}

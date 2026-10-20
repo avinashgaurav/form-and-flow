@@ -194,6 +194,8 @@ export default function MealBuilder() {
       <T v="title">{editing ? 'Edit meal' : 'Log a meal'}</T>
       <ChipGroup options={MEAL_ORDER.map((m) => ({ value: m, label: MEAL_LABEL[m] }))} value={mealType} onChange={setMealType} />
 
+      {/* Photo logging only appears when it can work (it needs the AI server). */}
+      {backendConfigured && (
       <Card>
         <T v="h2">Snap your plate</T>
         {photoBlocker ? (
@@ -226,6 +228,7 @@ export default function MealBuilder() {
         {photoNote && <Banner tone={photoNote.tone} title={photoNote.title} />}
         {drafts.some((d) => d.from === 'photo') && <T v="small">{getCard('ev-photo-estimates')?.summary ?? ''}</T>}
       </Card>
+      )}
 
       <Card>
         <T v="h2">Type what you ate</T>

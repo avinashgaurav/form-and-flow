@@ -3,7 +3,7 @@ import { DEFAULT_COACH_MODEL, DEFAULT_REMINDERS, type AllergenTag, type CoachMod
 /** Bumped when the notice changes; .2 added meal photos to the AI section. */
 export const NOTICE_VERSION = 'notice-draft-2026-10-19.2';
 
-/** The AI paragraph of the notice, shown at setup, in Settings and before the first photo. */
+/** The AI paragraph of the notice, shown in Settings and before the first photo. */
 export const AI_NOTICE =
   'If you allow it, two things go to Anthropic, our AI provider, which may process them outside India: a short summary of your plan to word coach replies (never your name or email), and meal photos you choose to send so it can name the foods. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.';
 

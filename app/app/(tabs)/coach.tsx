@@ -90,7 +90,7 @@ export default function Coach() {
             <T v="title">Coach</T>
             <Button label="What I know" kind="ghost" onPress={() => router.push('/memory')} />
           </Row>
-          <T v="small">{state.consents?.aiProcessing ? 'Answers use your plan’s rules, and AI wording when a server is connected.' : 'Answers come from your plan’s rules. AI processing is off.'}</T>
+          <T v="small">Answers come from your plan’s rules.</T>
 
           {messages.length === 0 && (
             <Card tone="sunken">
@@ -127,11 +127,14 @@ export default function Coach() {
                       const c = getCard(id);
                       return c ? <Chip key={id} label={`Source: ${c.title}`} onPress={() => setOpenCard(openCard === id ? null : id)} /> : null;
                     })}
-                    <Row gap={space.xs}>
-                      <Chip label="Helpful" selected={m.feedback === 'up'} onPress={() => feedback(m.id, 'up')} />
-                      <Chip label="Not helpful" selected={m.feedback === 'down'} onPress={() => feedback(m.id, 'down')} />
-                      <Chip label="This is wrong" selected={m.feedback === 'wrong'} onPress={() => feedback(m.id, 'wrong')} />
-                    </Row>
+                    {/* One quiet way to flag a bad answer, instead of a row of buttons under every reply. */}
+                    {m.feedback === 'wrong' ? (
+                      <T v="small">Thanks. Reported for review.</T>
+                    ) : (
+                      <Pressable accessibilityRole="button" accessibilityLabel="Report this answer as wrong" onPress={() => feedback(m.id, 'wrong')} hitSlop={8} style={{ alignSelf: 'flex-start', minHeight: 32, justifyContent: 'center' }}>
+                        <T v="small" style={{ textDecorationLine: 'underline' }}>Wrong answer?</T>
+                      </Pressable>
+                    )}
                   </Card>
                 </View>
               )}

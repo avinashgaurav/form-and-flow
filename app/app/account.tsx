@@ -5,6 +5,7 @@ import { backendConfigured, callFunction, supabase } from '../src/lib/backend';
 import { OTHER_ACCOUNT } from '../src/lib/BackendSync';
 import { shareJson } from '../src/lib/share';
 import { requestPush, resolveConflict, restore } from '../src/lib/sync';
+import { SESSION_STATUS, shortDate } from '../src/lib/limits';
 import { useStore } from '../src/store/store';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Field, Row, Screen, T } from '../src/ui';
@@ -174,7 +175,7 @@ export default function Account() {
                   <T v="small" style={{ color: color.ink }}>These workouts were saved differently on this phone and in the backup. Nothing is lost until you choose.</T>
                   {state.sync.conflicts.map((c) => (
                     <View key={`${c.key}|${c.backup.opId}`} style={{ gap: space.xs }}>
-                      <T v="small" style={{ color: color.ink }}>{`${c.backup.session.startedAt.slice(0, 10)}: this phone has ${c.phone.sets} sets (${c.phone.status.replace('_', ' ')}); the backup has ${c.backup.sets.length} sets (${c.backup.status.replace('_', ' ')}).`}</T>
+                      <T v="small" style={{ color: color.ink }}>{`${shortDate(c.backup.session.startedAt)}: this phone has ${c.phone.sets} sets (${SESSION_STATUS[c.phone.status]}); the backup has ${c.backup.sets.length} sets (${SESSION_STATUS[c.backup.status]}).`}</T>
                       <Row>
                         <Button label="Keep this phone's" kind="secondary" onPress={() => run(() => resolveConflict(getState, c, 'phone', dispatch, { importSets, removeSet }))} disabled={busy} />
                         <Button label="Keep backup" kind="ghost" onPress={() => run(() => resolveConflict(getState, c, 'backup', dispatch, { importSets, removeSet }))} disabled={busy} />

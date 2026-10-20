@@ -1,3 +1,4 @@
+import { shortDay } from './days';
 import { EXERCISES, WARMUP_IDS } from './exercises';
 import { isAllowed, maxLevelFor, minRir, trainingPaused } from './restrictions';
 import type { Block, Exercise, Goal, Pattern, PlannedSession, Restriction, TrainingProfile, WeekPlan } from './types';
@@ -193,12 +194,12 @@ export function buildWeek(profile: TrainingProfile, restrictions: Restriction[],
   if (sessions.length === 1) reasons.push({ ruleId: 'TR-01', text: 'Two sessions a week is the usual minimum; add a short home session if you can.' });
   reasons.push({ ruleId: 'TR-10', text: `Rest on ${restDays.map((d) => DAY_NAMES[d]).join(', ')}` });
   if (isNovice(profile) && profile.daysAvailable.length > cap) reasons.push({ ruleId: 'TR-01', text: `Capped at ${cap} sessions while you are starting out.` });
-  if (minRir(restrictions) > 1) reasons.push({ ruleId: 'LIMITED-MODE', text: 'Everything stays light to moderate, with several reps in reserve.' });
+  if (minRir(restrictions) > 1) reasons.push({ ruleId: 'LIMITED-MODE', text: 'Everything stays light to moderate, stopping with several reps to spare.' });
   if (options.deload) reasons.push({ ruleId: 'TR-04', text: 'Lighter week: about half the usual sets' });
   if ((options.volumeBonus ?? 0) > 0) reasons.push({ ruleId: 'TR-05', text: `${options.volumeBonus} extra set${options.volumeBonus === 1 ? '' : 's'} on your main lifts` });
   const regions = restrictions.filter((r) => r.code.startsWith('region:'));
   if (regions.length) {
-    const list = regions.map((r) => `${r.code.slice(7).replace('_', ' ')}${r.expiresAt ? ` until ${r.expiresAt}` : ''}`).join(', ');
+    const list = regions.map((r) => `${r.code.slice(7).replace('_', ' ')}${r.expiresAt ? ` until ${shortDay(r.expiresAt)}` : ''}`).join(', ');
     reasons.push({ ruleId: 'TR-07', text: `Leaving out moves that load your ${list}` });
   }
 

@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { checkLogFood } from '@ff/engines';
 import { FOOD_DATA_NOTE, fmtPortion, fmtTotal, foodPrefs, MEAL_LABEL, mealsOn, mealTypeAt, numericMode, targetsFor, toMealItem, totalsOf } from '../../src/lib/food';
 import { addDays, todayKey } from '../../src/lib/plan';
+import { sentence } from '../../src/lib/limits';
 import { newId, useStore } from '../../src/store/store';
 import type { MealItem, MealLog, SavedMeal } from '../../src/store/types';
 import { color, space } from '../../src/theme';
@@ -90,24 +91,33 @@ export default function Eat() {
           </>
         ) : (
           <>
-            <T>{targets.energy ? `Energy: ${targets.energy.displayKcal.low.toLocaleString('en-IN')} to ${targets.energy.displayKcal.high.toLocaleString('en-IN')} kcal` : targets.energyReason ?? 'No energy target.'}</T>
-            <T>
-              {targets.protein
-                ? `Protein: ${targets.protein.kind === 'cap' ? `up to ${targets.protein.grams.high} g` : targets.protein.grams.high ? `${targets.protein.grams.low} to ${targets.protein.grams.high} g` : `at least ${targets.protein.grams.default} g`}`
-                : targets.proteinReason ?? 'No protein target.'}
-            </T>
-            <T v="small">{targets.fibre.note}</T>
-            {totals && (
-              <View style={{ gap: space.xs }}>
-                <Eyebrow>Logged so far</Eyebrow>
-                <T v="small" style={{ color: color.ink }}>{`${fmtTotal('energyKcal', totals.energyKcal)} · ${fmtTotal('proteinG', totals.proteinG)} · ${fmtTotal('fibreG', totals.fibreG)}`}</T>
-              </View>
-            )}
+            {/* What you have eaten, next to what the guide suggests. */}
+            <View style={{ gap: space.xs }}>
+              <T v="label">Eaten so far today</T>
+              <T v="h2">{totals ? fmtTotal('energyKcal', totals.energyKcal) : 'Nothing yet'}</T>
+              <T v="small" style={{ color: color.ink }}>{targets.energy ? `Your guide: ${targets.energy.displayKcal.low.toLocaleString('en-IN')} to ${targets.energy.displayKcal.high.toLocaleString('en-IN')} kcal a day` : targets.energyReason ?? 'No energy guide.'}</T>
+            </View>
+            <View style={{ gap: space.xs }}>
+              <T v="label">Protein</T>
+              <T style={{ color: color.ink }}>
+                {`${totals ? fmtTotal('proteinG', totals.proteinG) : 'Nothing yet'} · guide ${
+                  targets.protein
+                    ? targets.protein.kind === 'cap' ? `up to ${targets.protein.grams.high} g` : targets.protein.grams.high ? `${targets.protein.grams.low} to ${targets.protein.grams.high} g` : `at least ${targets.protein.grams.default} g`
+                    : 'not set'
+                }`}
+              </T>
+            </View>
           </>
         )}
         <Button label={showWhy ? 'Hide why' : 'Why this guide'} kind="ghost" onPress={() => setShowWhy(!showWhy)} />
-        {showWhy && targets.reasons.map((r) => <T key={r.ruleId + r.text} v="small">{`${r.text} (${r.ruleId})`}</T>)}
-        {showWhy && targets.reasons.length === 0 && <T v="small">Built from your goal, body measurements and activity with the rules in this app.</T>}
+        {showWhy && (
+          <View style={{ gap: space.xs }}>
+            {targets.reasons.map((r) => <T key={r.ruleId + r.text} v="small">{sentence(r.text)}</T>)}
+            {targets.reasons.length === 0 && <T v="small">Built from your goal, body measurements and activity with the rules in this app.</T>}
+            {targets.mode !== 'non_numeric' && <T v="small">{targets.fibre.note}</T>}
+            <T v="small">{FOOD_DATA_NOTE}</T>
+          </View>
+        )}
       </Card>
 
       {state.savedMeals.length > 0 && (
@@ -131,7 +141,7 @@ export default function Eat() {
       )}
 
       {meals.length === 0 ? (
-        <EmptyState title="Nothing logged today" body={'Type "2 roti, dal, bhindi" or search. Logging some meals is fine; you do not need every one.'} />
+        <EmptyState title="Nothing logged today" body={'Tap "Log a meal" and type something like "2 roti, dal, bhindi". A few meals is enough.'} />
       ) : (
         meals.map((m) => mealCard(m))
       )}
@@ -149,7 +159,6 @@ export default function Eat() {
       )}
 
       <Button label="Food settings" kind="secondary" onPress={() => router.push('/food-settings')} />
-      <T v="small">{FOOD_DATA_NOTE}</T>
     </Screen>
   );
 }
