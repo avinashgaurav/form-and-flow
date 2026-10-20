@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { Icon } from '../../src/icons';
+import { ExerciseVideo } from '../../src/media/ExerciseVideo';
 import { currentPlan, effectiveSession, plural, todayIndex } from '../../src/lib/plan';
 import { useStore } from '../../src/store/store';
 import { BORDER, MIN_TOUCH, color, font, radius, space } from '../../src/theme';
@@ -70,21 +71,23 @@ export default function Train() {
       </View>
       {list.length === 0 && <T v="small">No match. Try a shorter word.</T>}
       {list.map((e) => (
-        <Pressable key={e.id} accessibilityRole="button" accessibilityState={{ expanded: open === e.id }} onPress={() => setOpen(open === e.id ? null : e.id)}>
-          <Card>
+        <Card key={e.id}>
+          {/* Only the header toggles, so the demo's own tap target is not nested in another button. */}
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: open === e.id }} onPress={() => setOpen(open === e.id ? null : e.id)} style={{ gap: 4 }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <T v="h2">{e.name}</T>
               <T v="small">{`Level ${e.level}`}</T>
             </Row>
             <T v="small">{`${PATTERN[e.pattern]} · ${[...e.anyOf, ...e.allOf].join(', ') || 'no equipment'}`}</T>
-            {open === e.id && (
-              <View style={{ gap: 4 }}>
-                {e.cues.map((c) => <T key={c} v="small" style={{ color: color.ink }}>{`• ${c}`}</T>)}
-                {e.reviewStatus === 'draft' && <Eyebrow>Draft, not yet reviewed</Eyebrow>}
-              </View>
-            )}
-          </Card>
-        </Pressable>
+          </Pressable>
+          {open === e.id && (
+            <View style={{ gap: 4 }}>
+              <ExerciseVideo exerciseId={e.id} name={e.name} />
+              {e.cues.map((c) => <T key={c} v="small" style={{ color: color.ink }}>{`• ${c}`}</T>)}
+              {e.reviewStatus === 'draft' && <Eyebrow>Draft, not yet reviewed</Eyebrow>}
+            </View>
+          )}
+        </Card>
       ))}
     </Screen>
   );

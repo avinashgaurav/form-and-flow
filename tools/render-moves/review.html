@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Move review</title>
+<style>
+  body { margin: 0; background: #ffffff; color: #0a0a0a; font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 16px; padding: 16px; }
+  figure { margin: 0; }
+  video { width: 100%; aspect-ratio: 1; display: block; background: #ffffff; }
+  figcaption { padding-top: 6px; }
+</style>
+</head>
+<body>
+<main id="grid"></main>
+<script>
+  const moves = new URLSearchParams(location.search).get('moves')?.split(',') ?? [];
+  const grid = document.getElementById('grid');
+  for (const m of moves) {
+    const fig = document.createElement('figure');
+    const v = Object.assign(document.createElement('video'), { src: `/renders/${m}.mp4`, autoplay: true, loop: true, muted: true, playsInline: true });
+    const cap = document.createElement('figcaption');
+    cap.textContent = m;
+    fig.append(v, cap);
+    grid.append(fig);
+  }
+</script>
+</body>
+</html>

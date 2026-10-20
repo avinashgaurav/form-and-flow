@@ -4,8 +4,21 @@
     {
       "name": "app-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "web:ci", "-w", "app"],
+      "runtimeArgs": [
+        "run",
+        "web:ci",
+        "-w",
+        "app"
+      ],
       "port": 8081
+    },
+    {
+      "name": "render-moves",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/render-moves/server.mjs"
+      ],
+      "port": 8090
     }
   ]
 }

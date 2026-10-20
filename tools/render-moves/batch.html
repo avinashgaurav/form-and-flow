@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Render batch</title>
+<style>
+  body { margin: 16px; background: #ffffff; color: #0a0a0a; font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  iframe { width: 760px; height: 800px; border: 0; }
+</style>
+</head>
+<body>
+<pre id="log"></pre>
+<div id="frame"></div>
+<script>
+  // Renders each move in its own frame, one after another: /batch?moves=a,b,c
+  const moves = new URLSearchParams(location.search).get('moves')?.split(',').filter(Boolean) ?? [];
+  const log = document.getElementById('log');
+  const note = (t) => { log.textContent += t + '\n'; };
+  window.batch = { done: [], failed: [], running: true };
+  (async () => {
+    for (const m of moves) {
+      const f = document.createElement('iframe');
+      f.src = `/?move=${m}`;
+      document.getElementById('frame').replaceChildren(f);
+      try {
+        // The frame says when it is ready (timers are throttled in a hidden page; messages are not).
+        const w = await new Promise((resolve, reject) => {
+          const onMessage = (e) => {
+            if (e.source !== f.contentWindow) return;
+            if (e.data?.moveError === m) {
+              window.removeEventListener('message', onMessage);
+              return reject(new Error(e.data.message));
+            }
+            if (e.data?.moveReady !== m) return;
+            window.removeEventListener('message', onMessage);
+            resolve(f.contentWindow);
+          };
+          window.addEventListener('message', onMessage);
+          f.addEventListener('error', () => reject(new Error('did not load')), { once: true });
+          setTimeout(() => { window.removeEventListener('message', onMessage); reject(new Error('timed out loading')); }, 120000);
+        });
+        const r = await w.renderMove();
+        w.disposeMove();
+        window.batch.done.push([m, r.frames, r.bytes]);
+        note(`${m}: ${r.frames} frames, ${(r.bytes / 1024).toFixed(0)} KB`);
+      } catch (e) {
+        try { f.contentWindow?.disposeMove?.(); } catch {}
+        window.batch.failed.push([m, String(e)]);
+        note(`${m}: FAILED ${e}`);
+      }
+    }
+    window.batch.running = false;
+    note('all done');
+  })();
+</script>
+</body>
+</html>

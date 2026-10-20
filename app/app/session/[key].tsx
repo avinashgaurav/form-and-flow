@@ -2,7 +2,8 @@ import { getExercise, substitutes, shortenSession, type Block } from '@ff/engine
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Figure, Icon } from '../../src/icons';
+import { Icon } from '../../src/icons';
+import { ExerciseVideo } from '../../src/media/ExerciseVideo';
 import { effectiveSession, exerciseName, plannedFor, plural, setsFor, suggestion } from '../../src/lib/plan';
 import { newId, useStore } from '../../src/store/store';
 import { color, space } from '../../src/theme';
@@ -168,10 +169,7 @@ function BlockView({ sessionKey, block, originalId, position, onSkip }: { sessio
     <View style={{ gap: space.lg }}>
       <T v="label">{`Exercise ${position}`}</T>
       <Card>
-        <View style={{ alignItems: 'center', backgroundColor: color.sunken, borderRadius: 8, paddingVertical: space.sm }}>
-          <Figure size={88} />
-          <T v="small">Demo coming soon. Text cues below.</T>
-        </View>
+        <ExerciseVideo key={block.exerciseId} exerciseId={block.exerciseId} name={ex?.name ?? block.exerciseId} />
         <T v="h1">{ex?.name ?? block.exerciseId}</T>
         <T v="small">{`Target ${target(block)}`}</T>
         {ex?.reviewStatus === 'draft' && <Eyebrow>Draft cues, not yet reviewed</Eyebrow>}

@@ -50,7 +50,8 @@
           "cameraPermission": "Form & Flow uses the camera only when you take a photo of a meal to log.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-video"
     ],
     "icon": "./assets/icon.png"
   }

@@ -13,7 +13,7 @@ A fitness and food coach for India. It plans training around your real week, log
 | Tab | What you get |
 |---|---|
 | Today | Today's session or rest day, a 3-tap check-in, shorten the session when time is short |
-| Train | The week's plan and a workout player: sets, rest timer, swaps, "something hurts" |
+| Train | The week's plan and a workout player: a looping 3D demo of every exercise, sets, rest timer, swaps, "something hurts" |
 | Eat | Type, search or photograph a meal; check every item; calories and protein shown as honest ranges; usual meals in 2 taps |
 | Coach | Answers from your plan's rules, with optional AI wording |
 | Progress | Workouts per week, last 7 days of food against your guide, optional weight trend, strength history |
@@ -41,6 +41,7 @@ npm run web -w app
 - **All checks:** `npm run verify` runs the typechecks and the engine, database and app tests.
 - **Real-AI check:** with your own `ANTHROPIC_API_KEY` set in your terminal, `npm run ai:smoke` sends the app's exact coach requests to Claude and checks the replies with the phone's validator. Add `-- --photo path/to/meal.jpg` to test photo logging, or `-- --model claude-haiku-5-5` to try another model. It costs a few cents.
 - **Web build:** `npm run build:web` (Vercel runs this on every push to `main`).
+- **Exercise demos:** the 3D clips are rendered locally from a Mixamo character (raw files stay in the git-ignored `media-src/`). Start the `render-moves` server from `.claude/launch.json`, open `/batch?moves=<ids>`, then run `npm run moves:publish` to copy the clips into the app. Licences: [plan/25](plan/25-exercise-media-sources.md).
 - **Server and phone builds:** see [supabase/SETUP.md](supabase/SETUP.md). The AI coach, photo logging and backup need your own Supabase project and Anthropic API key.
 
 ## Layout
@@ -53,6 +54,7 @@ npm run web -w app
 | `plan/` | Product plan: research, rules, screens, safety, privacy, scope |
 | `design/` | Skin and icon options |
 | `scripts/` | USDA value extraction, service worker build step |
+| `tools/render-moves/` | Renders the exercise demos on your Mac (see Run it) |
 
 ## Status
 

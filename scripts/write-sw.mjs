@@ -8,13 +8,15 @@ const dist = process.argv[2] ?? 'app/dist';
 const VERSION = (process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`).slice(0, 12);
 const walk = (dir) => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : [join(dir, n)]));
 // Every screen's code and every font, so a screen never opened before still works offline.
-const entry = ['_expo', 'assets'].flatMap((d) => walk(join(dist, d))).map((f) => '/' + relative(dist, f).split('\\').join('/'));
+// Exercise demo videos are left out: each is saved the first time it plays instead.
+const entry = ['_expo', 'assets'].flatMap((d) => walk(join(dist, d))).map((f) => '/' + relative(dist, f).split('\\').join('/')).filter((p) => !p.endsWith('.mp4'));
 
 const sw = `// Form & Flow offline support, version ${VERSION}.
 // The app is one page: every screen is /index.html plus app code. The page comes fresh from the
 // network when it answers within 1.5 s, otherwise from the copy saved on this phone. App code and
-// fonts are saved once (their file names change with every deploy). Your data never passes
-// through here: it lives in this browser's storage.
+// fonts are saved once (their file names change with every deploy). An exercise video is saved the
+// first time it plays, then served from this phone, in the byte ranges Safari asks for. Your data
+// never passes through here: it lives in this browser's storage.
 const PAGE = 'page-${VERSION}', STATIC = 'static-v1', WAIT_MS = 1500, MAX_STATIC = 300;
 const PRECACHE = ${JSON.stringify(['/', ...entry, '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'])};
 
@@ -41,11 +43,62 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+// One download per video even when the player asks for several byte ranges at once.
+const loading = new Map();
+async function fullVideo(path, e) {
+  const s = await caches.open(STATIC);
+  const hit = await s.match(path);
+  if (hit) return hit;
+  if (!loading.has(path)) {
+    const download = fetch(path).then((r) => {
+      // Keep the download shared until the copy is saved; a full cache still plays from the network.
+      const saved = r.ok ? s.put(path, r.clone()).catch(() => {}) : Promise.resolve();
+      e.waitUntil(saved);
+      saved.finally(() => loading.delete(path));
+      return r;
+    }, (err) => {
+      loading.delete(path);
+      throw err;
+    });
+    loading.set(path, download);
+  }
+  return (await loading.get(path)).clone();
+}
+
+// Answer a video request from the saved copy, cutting out the byte range Safari asks for.
+async function video(req, path, e) {
+  let full;
+  try {
+    full = await fullVideo(path, e);
+  } catch {
+    return fetch(req);
+  }
+  const header = req.headers.get('range');
+  if (!full.ok || !header) return full;
+  const m = /^bytes=(\\d*)-(\\d*)$/.exec(header);
+  if (!m || (!m[1] && !m[2])) return full; // several ranges or an odd form: send the whole file
+  const body = await full.arrayBuffer();
+  const size = body.byteLength;
+  let start = m[1] ? Number(m[1]) : size - Number(m[2]); // "bytes=-N" means the last N bytes
+  let end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  start = Math.max(start, 0);
+  if (start >= size || start > end) return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + size } });
+  return new Response(body.slice(start, end + 1), {
+    status: 206,
+    headers: { 'Content-Type': 'video/mp4', 'Content-Range': 'bytes ' + start + '-' + end + '/' + size, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' },
+  });
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+
+  if (url.pathname.endsWith('.mp4')) {
+    e.respondWith(video(req, url.pathname, e));
+    return;
+  }
 
   if (url.pathname.startsWith('/_expo/') || url.pathname.startsWith('/assets/') || /\\.(png|ttf|otf|woff2?)$/.test(url.pathname)) {
     e.respondWith(caches.open(STATIC).then(async (s) => {

@@ -10,3 +10,6 @@ android/
 *.log
 .DS_Store
 .vercel
+
+# Raw Mixamo files: Adobe allows rendered video, not sharing the raw FBX
+media-src/
