@@ -170,7 +170,7 @@ export type Prop =
   | { kind: 'kettlebell' }
   | { kind: 'barbell'; at: 'hands' | 'back' }
   | { kind: 'band'; anchor: Vec | 'feet'; hands: 'both' | 'together'; to?: 'knee' }
-  | { kind: 'bench'; x: number; y: number; w: number }
+  | { kind: 'bench'; x: number; y: number; w: number; /** 3D only: shift to one side (metres, - is the far side). */ side?: number }
   | { kind: 'chair'; x: number; y: number }
   | { kind: 'box'; x: number; w: number; h: number }
   | { kind: 'wall'; x: number }

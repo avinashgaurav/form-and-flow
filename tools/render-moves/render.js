@@ -24,7 +24,7 @@ const params = new URLSearchParams(location.search);
 const MOVE = params.get('move') ?? 'bw_squat';
 const CHARACTER = params.get('character') ?? 'character-remy';
 // Moves whose Mixamo clip matches our cues; every other move is keyed.
-const MIXAMO = new Set(['bw_squat', 'back_squat', 'pushup']);
+const MIXAMO = new Set(['bw_squat', 'back_squat']);
 const SOURCE = params.get('source') ?? (MIXAMO.has(MOVE) ? 'mixamo' : 'keys');
 const MOTION = MOTIONS[MOVE];
 if (SOURCE === 'keys' && !MOTION && !CUSTOM_MOVES().includes(MOVE)) throw new Error(`No motion for ${MOVE}`);
@@ -260,7 +260,8 @@ function curl(s, amount) {
  */
 function apply(p) {
   resetPose();
-  orient('Hips', p.spine[0].dir, p.spine[0].side);
+  const pelvis = p.pelvis ?? p.spine[0];
+  orient('Hips', pelvis.dir, pelvis.side);
   const mid = world('LeftUpLeg').add(world('RightUpLeg')).multiplyScalar(0.5);
   const hips = bones.Hips;
   hips.position.copy(hips.parent.worldToLocal(world(hips).add(p.hips.clone().sub(mid))));
@@ -285,11 +286,18 @@ const torsoDir = (deg) => new V(0, Math.cos(THREE.MathUtils.degToRad(deg)), Math
 const isPinned = (limb) => limb && 'to' in limb && limb.from !== 'root';
 
 // How far from the midline the hands sit, in metres, for what they hold.
+// Pressing moves: how far the elbows angle out from the body (0 tucked, 1 straight out). About
+// 45 degrees, as the cues say.
+const ELBOWS_OUT = { pushup: 0.9, knee_pushup: 0.9, wall_pushup: 0.9, db_bench_press: 0.9, bench_press: 0.9, pike_pushup: 0.6 }[MOVE] ?? 0;
+// Romanian deadlift: the weights stay in front of the thighs (metres from the midline, and forward).
+const HANDS_FRONT = { db_rdl: { spread: 0.12, forward: 0.11 } }[MOVE] ?? null;
+
 // Band presses use both hands apart, with a strand to each hand.
 const WIDE_BAND = new Set(['band_chest_press', 'band_overhead_press']);
 
 function handSpread(m) {
   if (WIDE_BAND.has(MOVE)) return null;
+  if (HANDS_FRONT) return HANDS_FRONT.spread;
   const kinds = new Set(m.props.map((p) => (p.kind === 'dumbbell' || p.kind === 'band' ? `${p.kind}:${p.hands}` : p.kind)));
   if (kinds.has('kettlebell') || kinds.has('dumbbell:together') || kinds.has('band:together') || kinds.has('cable')) return 0.07;
   if (kinds.has('bar') || kinds.has('pulldown')) return 0.38;
@@ -311,7 +319,10 @@ function from2D(m, t) {
   const hipsAt = P(s.hip);
   // The drawing gives a lying body some thickness above the floor; settle the back onto the mat.
   if (pose.torso < -50) hipsAt.y -= 0.06 * metre * THREE.MathUtils.clamp((s.hip[1] - 145) / 20, 0, 1);
-  const out = { hips: hipsAt, spine, neck: { dir: hd, side: chest(hd) }, head: { dir: hd, side: chest(hd) }, arms: {}, legs: {}, grip: [] };
+  // The pelvis follows the torso; only the spine above it bends, so rounding the back lifts the
+  // middle of the back, not the shoulders.
+  const td = torsoDir(pose.torso);
+  const out = { hips: hipsAt, pelvis: { dir: td, side: chest(td) }, spine, neck: { dir: hd, side: chest(hd) }, head: { dir: hd, side: chest(hd) }, arms: {}, legs: {}, grip: [] };
   const holds = m.props.some((p) => ['dumbbell', 'kettlebell', 'barbell', 'bar', 'band', 'cable', 'pulldown', 'doorframe'].includes(p.kind));
   // Lay out the hips and spine first so the arms reach from the real shoulders.
   apply({ ...out, arms: { Left: restArm('Left'), Right: restArm('Right') }, legs: { Left: restLeg('Left'), Right: restLeg('Right') } });
@@ -329,14 +340,17 @@ function from2D(m, t) {
       target.x = lat;
       if (spread === null && target.y < hipsAt.y + 0.1 * metre) target.x += sign(side) * 0.04 * metre; // clear the thighs
     }
+    if (HANDS_FRONT && target.y < hipsAt.y + 0.1 * metre) target.z += HANDS_FRONT.forward * metre;
     const arm = { target, pole: P(fix(j.mid)).sub(P(fix(j.root))) };
+    if (ELBOWS_OUT) arm.pole.add(new V(sign(side) * ELBOWS_OUT * arm.pole.length(), 0, 0));
+    if (MOVE === 'wall_pushup') arm.palm = { dir: new V(0, 1, 0), normal: new V(0, 0, 1) }; // palms flat on the wall
     if (MOVE === 'leg_press') {
       // Hands hold the handles beside the seat.
       arm.target = hipsAt.clone().add(new V(sign(side) * 0.3 * metre, 0.02 * metre, 0.1 * metre));
       arm.pole = new V(sign(side) * 0.3, 0.2, -1);
       out.grip.push(side);
     }
-    if (isPinned(def) && j.end[1] >= GROUND - 8) arm.palm = { dir: new V(0, 0, 1), normal: new V(0, -1, 0) };
+    if (isPinned(def) && def.to[1] >= GROUND - 8) arm.palm = { dir: new V(0, 0, 1), normal: new V(0, -1, 0) };
     out.arms[side] = arm;
     if (holds && (side === 'Left' || !m.props.some((p) => p.kind === 'dumbbell' && p.hands === 'near'))) out.grip.push(side);
   }
@@ -432,12 +446,14 @@ const CUSTOM = {
   },
   // Arms straight out to the sides, small circles growing larger.
   arm_circles: {
-    seconds: 4.0,
+    seconds: 6.0,
     pose(t) {
       const m = metre;
-      const turns = 4;
-      const a = (2 * Math.PI * turns * t) / this.seconds;
-      const r = (0.04 + 0.08 * (t / this.seconds)) * m;
+      const turns = 3;
+      const phase = t / this.seconds;
+      // Forward for the first half, then the same circles in reverse.
+      const a = phase < 0.5 ? 2 * Math.PI * turns * (phase * 2) : -2 * Math.PI * turns * ((phase - 0.5) * 2);
+      const r = (0.04 + 0.08 * Math.sin(Math.PI * ((phase * 2) % 1))) * m;
       const base = standing();
       apply(base);
       for (const s of SIDES) {
@@ -592,6 +608,7 @@ function buildProps(m) {
       const len = (b.z - a.z) / metre;
       const top = a.y;
       const g = new THREE.Group();
+      g.position.x = (p.side ?? 0) * metre;
       const pad = box(0.3, 0.06, len, mats.pad);
       pad.position.set(0, top - 0.03 * metre, (a.z + b.z) / 2);
       const leg1 = box(0.06, top / metre - 0.06, 0.06, mats.frame);
@@ -603,8 +620,9 @@ function buildProps(m) {
       foot1.position.set(0, 0.015 * metre, a.z + 0.12 * metre);
       foot2.position.set(0, 0.015 * metre, b.z - 0.12 * metre);
       g.add(pad, leg1, leg2, foot1, foot2);
-      add(g, null, () => [a.z + 0.12 * metre, b.z - 0.12 * metre].flatMap((z) => [-0.18, 0.18].flatMap((x) => [new V(x * metre, top, z), new V(x * metre, 0, z)]))
-        .concat([new V(0.15 * metre, top, a.z), new V(-0.15 * metre, top, b.z)]));
+      const cx = (p.side ?? 0) * metre;
+      add(g, null, () => [a.z + 0.12 * metre, b.z - 0.12 * metre].flatMap((z) => [-0.18, 0.18].flatMap((x) => [new V(cx + x * metre, top, z), new V(cx + x * metre, 0, z)]))
+        .concat([new V(cx + 0.15 * metre, top, a.z), new V(cx - 0.15 * metre, top, b.z)]));
     }
     if (p.kind === 'chair') {
       const front = P([p.x + 36, p.y]);
@@ -683,9 +701,12 @@ function buildProps(m) {
       }, () => [new V(0, at.y, at.z + 0.17 * metre)]);
     }
     if (p.kind === 'band') {
-      const sides = p.hands === 'both' || WIDE_BAND.has(MOVE) ? SIDES : ['mid'];
+      const NECK = MOVE === 'band_good_morning';
+      const sides = p.hands === 'both' || WIDE_BAND.has(MOVE) || NECK ? SIDES : ['mid'];
       const g = new THREE.Group();
       const strands = sides.map(() => rod(0.014, mats.band));
+      const necks = NECK ? SIDES.map(() => rod(0.014, mats.band)) : [];
+      g.add(...necks);
       g.add(...strands);
       let anchorPoint = null;
       if (p.anchor !== 'feet') {
@@ -710,6 +731,17 @@ function buildProps(m) {
           const to = p.to === 'knee' ? world('LeftLeg') : ends[s];
           span(strand, from, to);
         });
+        if (NECK) {
+          // Behind the neck: a point at the base of the neck, pushed back from the chest.
+          const neck = world('Neck');
+          const up = neck.clone().sub(world('Spine2')).normalize();
+          const back = chest(up).negate();
+          necks.forEach((strand, i) => {
+            const s = SIDES[i];
+            const behind = neck.clone().addScaledVector(back, 0.07 * metre).add(new V(sign(s) * 0.08 * metre, 0, 0));
+            span(strand, ends[s], behind);
+          });
+        }
       }, () => (anchorPoint ? [anchorPoint.clone()] : []));
     }
     if (p.kind === 'legpress') {
@@ -961,6 +993,22 @@ window.renderMove = async () => {
     rendering = false;
   }
 };
+// Quality check: across the loop, the largest gap (cm) between a hand and the floor point it
+// should rest on. Anything over a few centimetres means the pose cannot reach.
+window.contactReport = () => {
+  if (SOURCE !== 'keys' || !MOTION || CUSTOM[MOVE]) return { move: MOVE, worst: 0 };
+  let worst = 0;
+  for (let i = 0; i < 60; i += 1) {
+    const p = from2D(MOTION, (duration * i) / 60);
+    apply(p);
+    for (const s of SIDES) {
+      if (!p.arms[s].palm || MOVE === 'wall_pushup') continue;
+      worst = Math.max(worst, world(`${s}Hand`).distanceTo(p.arms[s].target) / metre * 100);
+    }
+  }
+  return { move: MOVE, worst: Math.round(worst) };
+};
+
 // A batch renders many moves one after another; free this page's GPU context before the next.
 window.disposeMove = () => {
   renderer.setAnimationLoop(null);
@@ -969,3 +1017,4 @@ window.disposeMove = () => {
 };
 window.moveReady = true;
 window.parent?.postMessage({ moveReady: MOVE }, location.origin);
+

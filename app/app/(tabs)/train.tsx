@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { Icon } from '../../src/icons';
 import { ExerciseVideo } from '../../src/media/ExerciseVideo';
+import { equipmentText } from '../../src/lib/equipment';
 import { currentPlan, effectiveSession, plural, todayIndex } from '../../src/lib/plan';
 import { useStore } from '../../src/store/store';
 import { BORDER, MIN_TOUCH, color, font, radius, space } from '../../src/theme';
@@ -78,7 +79,7 @@ export default function Train() {
               <T v="h2">{e.name}</T>
               <T v="small">{`Level ${e.level}`}</T>
             </Row>
-            <T v="small">{`${PATTERN[e.pattern]} · ${[...e.anyOf, ...e.allOf].join(', ') || 'no equipment'}`}</T>
+            <T v="small">{`${PATTERN[e.pattern]} · ${equipmentText(e.anyOf, e.allOf)}`}</T>
           </Pressable>
           {open === e.id && (
             <View style={{ gap: 4 }}>

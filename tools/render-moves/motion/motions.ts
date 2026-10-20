@@ -37,7 +37,9 @@ function lying(torso: number, head: number, feet: Limb, arms: Limb, armsFar?: Li
   return { hip, torso, head, armNear: arms, armFar: armsFar, legNear: feet };
 }
 
-const TABLETOP: Pose = { hip: [90, 132], torso: 81, armNear: hand(140, 181, -1), legNear: foot(50, 178, -1) };
+// Both hands and both knees are named: a pose that lifts one limb must not drag its pair with it
+// (an unnamed far limb copies the near one).
+const TABLETOP: Pose = { hip: [90, 143], torso: 81, armNear: hand(140, 181, -1), armFar: hand(137, 179, -1), legNear: foot(50, 178, -1), legFar: foot(47, 176, -1) };
 
 /* ---------- Push-up geometry ---------- */
 
@@ -67,6 +69,9 @@ const benchPress = (handsY: number, handsX: number, barbell: boolean): Motion =>
 /* ---------- Lunge geometry ---------- */
 
 const lunge = (hip: Vec, front: number, back: Vec, torso = 4): Pose => ({ hip, torso, armNear: SIDES, legNear: foot(front), legFar: foot(back[0], back[1], -1), footFar: -40 });
+
+/** World's greatest stretch: long lunge, both hands down inside the front foot. */
+const WGS_HANDS_DOWN: Pose = { hip: [98, 154], torso: 68, armNear: hand(152, 181, 1), armFar: hand(150, 181, 1), legNear: foot(140), legFar: foot(21, 176, -1), footFar: -30 };
 
 /* ---------- The library ---------- */
 
@@ -191,13 +196,13 @@ const M: Record<string, Motion> = {
     props: [{ kind: 'wall', x: 200 }],
   },
   knee_pushup: {
-    ...rep(kneePush(55), kneePush(70), ['Lower your chest, body in one line', 'Push the floor away']),
+    ...rep(kneePush(64), kneePush(75), ['Lower your chest, body in one line', 'Push the floor away']),
     muscles: ['chest', 'arms'],
     props: [],
     mat: true,
   },
   pushup: {
-    ...rep(pushup(66.6), pushup(78), ['Lower your chest, body in one line', 'Push the floor away']),
+    ...rep(pushup(74), pushup(83), ['Lower your chest, body in one line', 'Push the floor away']),
     muscles: ['chest', 'arms', 'core'],
     props: [],
     mat: true,
@@ -225,8 +230,8 @@ const M: Record<string, Motion> = {
   },
   pike_pushup: {
     ...rep(
-      { hip: [104, 100], torso: 118, armNear: hand(165, 178, 1), legNear: foot(70, 172), footNear: -40 },
-      { hip: [106, 108], torso: 140, armNear: hand(165, 178, 1), legNear: foot(70, 172), footNear: -40 },
+      { hip: [104, 100], torso: 140, armNear: hand(165, 181, 1), legNear: foot(70, 172), footNear: -40 },
+      { hip: [106, 106], torso: 156, armNear: hand(165, 181, 1), legNear: foot(70, 172), footNear: -40 },
       ['Bend your elbows, head toward the floor', 'Push back up, hips high'],
     ),
     muscles: ['shoulders', 'arms'],
@@ -246,16 +251,16 @@ const M: Record<string, Motion> = {
   band_row: {
     ...rep(stand(108, { torso: 6, armNear: rel(56, 10, -1) }), stand(108, { torso: 6, armNear: rel(14, 34, -1) }), ['Pull your elbows back, squeeze your shoulder blades', 'Arms long again, slowly']),
     muscles: ['back', 'arms'],
-    props: [{ kind: 'band', anchor: [204, 92], hands: 'together' }],
+    props: [{ kind: 'band', anchor: [204, 64], hands: 'together' }],
   },
   db_row: {
     ...rep(
-      { hip: [106, 108], torso: 80, armNear: rel(2, 56, -1), armFar: hand(172, 143, 1), legNear: foot(118), legFar: foot(94) },
-      { hip: [106, 108], torso: 80, armNear: rel(-24, 26, -1), armFar: hand(172, 143, 1), legNear: foot(118), legFar: foot(94) },
+      { hip: [106, 108], torso: 80, armNear: rel(2, 56, -1), armFar: hand(172, 143, 1), legNear: foot(118), legFar: { to: [62, 144], bend: -1 }, footFar: 170 },
+      { hip: [106, 108], torso: 80, armNear: rel(-24, 26, -1), armFar: hand(172, 143, 1), legNear: foot(118), legFar: { to: [62, 144], bend: -1 }, footFar: 170 },
       ['Pull the weight to your hip', 'Lower with a long arm'],
     ),
     muscles: ['back', 'arms'],
-    props: [{ kind: 'bench', x: 150, y: 150, w: 60 }, { kind: 'dumbbell', hands: 'near' }],
+    props: [{ kind: 'bench', x: 52, y: 150, w: 140, side: -0.13 }, { kind: 'dumbbell', hands: 'near' }],
   },
   cable_row: {
     ...rep(
@@ -268,9 +273,9 @@ const M: Record<string, Motion> = {
   },
   barbell_row: {
     ...rep(
-      { hip: [92, 106], torso: 65, armNear: rel(0, 56, -1), legNear: foot(114) },
-      { hip: [92, 106], torso: 65, armNear: rel(-6, 28, -1), legNear: foot(114) },
-      ['Pull the bar to your lower chest', 'Lower with control, back flat'],
+      { hip: [95, 104], torso: 48, armNear: rel(0, 56, -1), legNear: foot(114) },
+      { hip: [95, 104], torso: 48, armNear: rel(-10, 30, -1), legNear: foot(114) },
+      ['Pull the bar to your belly button', 'Lower with control, back flat'],
     ),
     muscles: ['back', 'arms'],
     props: [{ kind: 'barbell', at: 'hands' }],
@@ -311,9 +316,9 @@ const M: Record<string, Motion> = {
   dead_bug: {
     start: lying(-92, 0, ang(180, 90), ang(180, 180)),
     frames: [
-      { pose: { ...lying(-92, 0, ang(95, 95), ang(180, 180), ang(-100, -100)), legFar: ang(180, 90) }, dur: 1.4, hold: 0.3, cue: 'Reach the opposite arm and leg away, back flat' },
+      { pose: { ...lying(-92, 0, ang(95, 95), ang(180, 180), ang(260, 260)), legFar: ang(180, 90) }, dur: 1.4, hold: 0.3, cue: 'Reach the opposite arm and leg away, back flat' },
       { pose: lying(-92, 0, ang(180, 90), ang(180, 180)), dur: 1.1, hold: 0.3, cue: 'Return to the start' },
-      { pose: { ...lying(-92, 0, ang(180, 90), ang(-100, -100), ang(180, 180)), legFar: ang(95, 95) }, dur: 1.4, hold: 0.3, cue: 'Now the other side' },
+      { pose: { ...lying(-92, 0, ang(180, 90), ang(260, 260), ang(180, 180)), legFar: ang(95, 95) }, dur: 1.4, hold: 0.3, cue: 'Now the other side' },
       { pose: lying(-92, 0, ang(180, 90), ang(180, 180)), dur: 1.1, hold: 0.3, cue: 'Return to the start' },
     ],
     muscles: ['core'],
@@ -323,9 +328,9 @@ const M: Record<string, Motion> = {
   bird_dog: {
     start: TABLETOP,
     frames: [
-      { pose: { ...TABLETOP, armNear: hand(196, 121, -1), legFar: foot(8, 126, -1) }, dur: 1.4, hold: 0.6, cue: 'Reach one arm forward and the other leg back' },
+      { pose: { ...TABLETOP, armNear: hand(196, 135, -1), legFar: foot(8, 141, -1) }, dur: 1.4, hold: 0.6, cue: 'Reach one arm forward and the other leg back' },
       { pose: TABLETOP, dur: 1.1, hold: 0.2, cue: 'Return without twisting' },
-      { pose: { ...TABLETOP, armFar: hand(193, 119, -1), legNear: foot(8, 128, -1) }, dur: 1.4, hold: 0.6, cue: 'Now the other side' },
+      { pose: { ...TABLETOP, armFar: hand(193, 133, -1), legNear: foot(8, 143, -1) }, dur: 1.4, hold: 0.6, cue: 'Now the other side' },
       { pose: TABLETOP, dur: 1.1, hold: 0.2, cue: 'Return without twisting' },
     ],
     muscles: ['core', 'glutes'],
@@ -393,7 +398,7 @@ const M: Record<string, Motion> = {
     start: TABLETOP,
     frames: [
       { pose: { ...TABLETOP, curve: 30, head: 40 }, dur: 1.8, hold: 0.4, cue: 'Round your back up, tuck your chin' },
-      { pose: { ...TABLETOP, curve: -22, head: -28 }, dur: 2.0, hold: 0.4, cue: 'Let your belly drop, look forward' },
+      { pose: { ...TABLETOP, curve: -34, head: -38 }, dur: 2.0, hold: 0.4, cue: 'Let your belly drop, look forward' },
     ],
     muscles: ['back'],
     props: [],
@@ -418,13 +423,12 @@ const M: Record<string, Motion> = {
     props: [],
   },
   worlds_greatest_stretch: {
-    ...rep(
-      { hip: [98, 146], torso: 68, armNear: hand(152, 181, 1), armFar: hand(150, 181, 1), legNear: foot(140), legFar: foot(21, 176, -1), footFar: -30 },
-      { hip: [98, 146], torso: 68, armNear: hand(150, 70, 1), armFar: hand(150, 181, 1), legNear: foot(140), legFar: foot(21, 176, -1), footFar: -30 },
-      ['Rotate and reach to the ceiling', 'Bring the hand back down'],
-      [1.6, 1.2],
-      [0.8, 0.3],
-    ),
+    start: WGS_HANDS_DOWN,
+    frames: [
+      { pose: { ...WGS_HANDS_DOWN, hip: [96, 160], torso: 74, armNear: hand(136, 170, -1) }, dur: 1.3, hold: 0.6, cue: 'Drop the inside elbow toward your front instep' },
+      { pose: { ...WGS_HANDS_DOWN, armNear: hand(150, 70, 1) }, dur: 1.5, hold: 0.8, cue: 'Rotate and reach to the ceiling' },
+      { pose: WGS_HANDS_DOWN, dur: 1.2, hold: 0.3, cue: 'Bring the hand back down' },
+    ],
     muscles: ['hamstrings', 'back'],
     props: [],
     mat: true,

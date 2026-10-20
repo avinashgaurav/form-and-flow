@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { equipmentList } from '../src/lib/equipment';
 import { useStore } from '../src/store/store';
 import { color } from '../src/theme';
 import { Button, Card, Row, Screen, T } from '../src/ui';
@@ -17,7 +18,7 @@ export default function Memory() {
     ['Goal', GOAL[p.goal] ?? p.goal],
     ['Experience', EXP[p.training.experience] ?? p.training.experience],
     ['Where you train', p.training.location],
-    ['Equipment', p.training.equipment.join(', ') || 'none'],
+    ['Equipment', equipmentList(p.training.equipment)],
     ['Days', p.training.daysAvailable.map((d) => DAY[d]).join(', ')],
     ['Session length', `${p.training.sessionMinutes} min`],
     ['Coach tone', p.tone],

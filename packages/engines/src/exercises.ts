@@ -147,8 +147,8 @@ export const EXERCISES: Exercise[] = [
     cues: ['Heavy weights at your sides', 'Walk tall with short steps', 'Shoulders down, grip hard'],
     mistakes: ['Leaning to one side', 'Shrugging'] },
   { id: 'suitcase_march', name: 'Suitcase march', aliases: [], pattern: 'carry', anyOf: [], allOf: [], level: 1, tags: [], loaded: false, reviewStatus: D,
-    cues: ['Hold a full bag in one hand', 'March in place, knees up', 'Stay upright; switch hands'],
-    mistakes: ['Leaning toward the bag', 'Rushing'] },
+    cues: ['Hold a dumbbell or a full bag in one hand', 'March in place, knees up', 'Stay upright; switch hands'],
+    mistakes: ['Leaning toward the weight', 'Rushing'] },
 
   // Mobility and warm-up
   { id: 'march_in_place', name: 'March in place', aliases: [], pattern: 'mobility', anyOf: [], allOf: [], level: 1, tags: [], loaded: false, reviewStatus: D,
