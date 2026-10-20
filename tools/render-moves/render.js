@@ -31,7 +31,7 @@ if (SOURCE === 'keys' && !MOTION && !CUSTOM_MOVES().includes(MOVE)) throw new Er
 
 // Camera: degrees round from the front, and height. Floor work is seen from higher up.
 const VIEWS = {
-  wall_pushup: [105, 0.12], doorframe_row: [62, 0.1], side_plank: [8, 0.22], arm_circles: [28, 0.08],
+  wall_pushup: [105, 0.12], doorframe_row: [118, 0.12], side_plank: [8, 0.22], arm_circles: [28, 0.08],
   pallof_press: [30, 0.1], lat_pulldown: [42, 0.12], cable_row: [58, 0.16], leg_press: [70, 0.2],
   bench_press: [62, 0.3], db_bench_press: [62, 0.3], hip_thrust: [62, 0.24], db_row: [58, 0.18],
 };
@@ -42,7 +42,7 @@ const ELEVATION = Number(params.get('elevation') ?? EL);
 const SIZE = 720;
 const FPS = 30;
 const FOV = 28;
-const MARGIN = 1.14;
+const MARGIN = 1.06;
 
 const status = document.getElementById('status');
 const say = (text) => { status.textContent = text; };
@@ -583,7 +583,8 @@ function buildProps(m) {
         const l = grip('Left');
         const r = grip('Right');
         place(bb, l.clone().add(r).multiplyScalar(0.5), r.sub(l), new V(0, 1, 0));
-      }, () => [-1.1, 1.1].map((x) => bb.localToWorld(new V(x, 0, 0))).concat([0.78, -0.78].flatMap((x) => [bb.localToWorld(new V(x, 0.225, 0)), bb.localToWorld(new V(x, -0.225, 0))])));
+      }, () => [-1.1, 1.1].map((x) => bb.localToWorld(new V(x, 0, 0)))
+        .concat([0.78, -0.78].flatMap((x) => [[0.225, 0], [-0.225, 0], [0, 0.225], [0, -0.225], [0.16, 0.16], [0.16, -0.16], [-0.16, 0.16], [-0.16, -0.16]].map(([y, z]) => bb.localToWorld(new V(x, y, z))))));
     }
     if (p.kind === 'bench') {
       const a = P([p.x, p.y]);
@@ -602,7 +603,8 @@ function buildProps(m) {
       foot1.position.set(0, 0.015 * metre, a.z + 0.12 * metre);
       foot2.position.set(0, 0.015 * metre, b.z - 0.12 * metre);
       g.add(pad, leg1, leg2, foot1, foot2);
-      add(g, null, () => [new V(0.15 * metre, top, a.z), new V(-0.15 * metre, top, b.z), new V(0, 0, a.z), new V(0, 0, b.z)]);
+      add(g, null, () => [a.z + 0.12 * metre, b.z - 0.12 * metre].flatMap((z) => [-0.18, 0.18].flatMap((x) => [new V(x * metre, top, z), new V(x * metre, 0, z)]))
+        .concat([new V(0.15 * metre, top, a.z), new V(-0.15 * metre, top, b.z)]));
     }
     if (p.kind === 'chair') {
       const front = P([p.x + 36, p.y]);
@@ -669,8 +671,8 @@ function buildProps(m) {
       const g = new THREE.Group();
       const column = box(0.14, 2.0, 0.14, mats.frame);
       column.position.set(0, 1.0 * metre, at.z + 0.1 * metre);
-      const line = rod(0.004, mats.cable);
-      const handle = rod(0.014, mats.steel);
+      const line = rod(0.009, mats.cable);
+      const handle = rod(0.016, mats.steel);
       g.add(column, line, handle);
       add(g, () => {
         const l = grip('Left');
@@ -683,7 +685,7 @@ function buildProps(m) {
     if (p.kind === 'band') {
       const sides = p.hands === 'both' || WIDE_BAND.has(MOVE) ? SIDES : ['mid'];
       const g = new THREE.Group();
-      const strands = sides.map(() => rod(0.007, mats.band));
+      const strands = sides.map(() => rod(0.014, mats.band));
       g.add(...strands);
       let anchorPoint = null;
       if (p.anchor !== 'feet') {
@@ -752,7 +754,7 @@ function buildProps(m) {
       const knee = box(0.5, 0.1, 0.12, mats.pad);
       const column = box(0.14, 2.4, 0.14, mats.frame);
       const bar = barbellMesh(1.2, false);
-      const line = rod(0.004, mats.cable);
+      const line = rod(0.009, mats.cable);
       g.add(seat, knee, column, bar, line);
       let top = null;
       add(g, () => {
@@ -854,13 +856,24 @@ function fitMat(samples) {
   item.obj.position.set((b.min.x + b.max.x) / 2, 0.004 * metre, (b.min.z + b.max.z) / 2);
 }
 
-// Frame the whole move: project every bone and prop across the loop, then centre and zoom so
-// the figure fills the frame with a margin for hair, hands and shoes.
+// How far the body's surface reaches beyond each bone (metres): trunk, head, limbs.
+const flesh = (boneName) => (/Hips|Spine/.test(boneName) ? 0.17 : /Head|Neck/.test(boneName) ? 0.17 : /Foot|Toe/.test(boneName) ? 0.09 : 0.07);
+// Six axes plus eight diagonals, so a padded joint reaches out whichever way the camera looks.
+const AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+  ...[-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z])))].map(([x, y, z]) => new V(x, y, z).normalize());
+
+// Frame the whole move: project the body (each bone padded out to the skin) and every prop
+// across the loop, then centre and zoom so nothing is cut off and the figure fills the frame.
 function frameMove() {
   const points = [];
   for (let i = 0; i <= 24; i += 1) {
     pose((duration * i) / 24);
-    bones.Hips.traverse((o) => { if (o.isBone) points.push(world(o)); });
+    bones.Hips.traverse((o) => {
+      if (!o.isBone) return;
+      const p = world(o);
+      const r = flesh(o.name) * metre;
+      for (const a of AXES) points.push(p.clone().addScaledVector(a, r));
+    });
     for (const item of props) points.push(...item.points());
   }
   fitMat(points);
