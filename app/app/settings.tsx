@@ -68,7 +68,14 @@ export default function Settings() {
       <Card>
         <T v="h2">Your setup</T>
         <T v="small">Change your goal, equipment, days or safety answers. Your logged history is kept.</T>
-        <Button label="Redo setup" kind="secondary" onPress={() => dispatch({ type: 'patch', patch: { onboarded: false, draft: { ...state.draft, step: 2 } } })} />
+        <Button
+          label="Redo setup"
+          kind="secondary"
+          onPress={() => {
+            dispatch({ type: 'patch', patch: { onboarded: false, draft: { ...state.draft, step: 2 } } });
+            router.replace('/onboarding');
+          }}
+        />
       </Card>
 
       <Card>
