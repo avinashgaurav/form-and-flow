@@ -69,4 +69,4 @@ Pilot build for the founder. Exercises, rules and recipes are drafts a qualified
 
 ## Licence
 
-The code is MIT (see [LICENSE](LICENSE)). The exercise clips in `app/assets/exercises/` are rendered from Adobe Mixamo assets and our own animations, and follow [Adobe's Mixamo terms](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html), not MIT; details in [plan/25](plan/25-exercise-media-sources.md).
+The code is MIT (see [LICENSE](LICENSE)). The exercise clips in `app/assets/exercises/` are not covered by MIT. They are rendered videos of a Mixamo character: 3 of the 46 motions are Mixamo motion capture and 43 are our own keyframes. The clips are used under [Adobe's Mixamo terms](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html), and no raw Mixamo files are included. Details: [plan/25](plan/25-exercise-media-sources.md).
