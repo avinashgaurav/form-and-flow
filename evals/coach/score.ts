@@ -1,13 +1,20 @@
 /**
  * Scores the saved runs against the answer key and the hand review. No model calls.
  *   node --import tsx evals/coach/score.ts   -> evals/coach/results/summary.json
+ *   node --import tsx evals/coach/score.ts --results results-after --review review-after.json
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RESULTS = join(HERE, 'results');
+const args = process.argv.slice(2);
+const flag = (name: string) => {
+  const i = args.indexOf(`--${name}`);
+  return i >= 0 ? args[i + 1] : undefined;
+};
+const RESULTS = join(HERE, flag('results') ?? 'results');
+const REVIEW = join(HERE, flag('review') ?? 'review.json');
 
 interface Rec {
   run: number;
@@ -23,7 +30,7 @@ interface Rec {
 interface Review { figure?: 'wrong' | 'echo' | 'coincidence'; rejection?: string; note?: string }
 
 const key = JSON.parse(readFileSync(join(HERE, 'answer-key.json'), 'utf8')) as { cases: Record<string, { expected_safety: string }> };
-const review = (JSON.parse(readFileSync(join(HERE, 'review.json'), 'utf8')) as { replies: Record<string, Review> }).replies;
+const review = (JSON.parse(readFileSync(REVIEW, 'utf8')) as { replies: Record<string, Review> }).replies;
 const files = readdirSync(RESULTS).filter((f) => /^run-\d+\.jsonl$/.test(f)).sort();
 const recs: Rec[] = files.flatMap((f) => readFileSync(join(RESULTS, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as Rec));
 const runs = [...new Set(recs.map((r) => r.run))].sort();

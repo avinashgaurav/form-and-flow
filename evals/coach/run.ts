@@ -6,8 +6,8 @@
  *      CLI, using the app's exact coachRequest (system prompt, JSON schema, effort).
  *   3. The reply goes through the app's validateModelOutput and the eval's own number check.
  *
- *   node --import tsx evals/coach/run.ts [--runs 3] [--concurrency 4] [--model claude-opus-5-5]
- * Raw records go to evals/coach/results/run-N.jsonl; then run score.ts.
+ *   node --import tsx evals/coach/run.ts [--runs 3] [--concurrency 4] [--model claude-opus-5-5] [--out results]
+ * Raw records go to evals/coach/<out>/run-N.jsonl (default results/); then run score.ts.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -98,15 +98,16 @@ async function main() {
   const first = Number(flag('first') ?? 1);
   const conc = Number(flag('concurrency') ?? 4);
   const model = flag('model') ?? DEFAULT_COACH_MODEL;
+  const out = flag('out') ?? 'results';
   const cases = loadCases();
-  mkdirSync(join(HERE, 'results'), { recursive: true });
+  mkdirSync(join(HERE, out), { recursive: true });
   for (let n = first; n < first + runs; n++) {
     const t0 = Date.now();
     const recs = await pool(cases, conc, (c) => evalCase(c, model));
-    const file = join(HERE, 'results', `run-${n}.jsonl`);
+    const file = join(HERE, out, `run-${n}.jsonl`);
     writeFileSync(file, recs.map((r) => JSON.stringify({ run: n, model_requested: model, ...r })).join('\n') + '\n');
     const failed = recs.filter((r) => r.cli && !(r.cli as { ok: boolean }).ok).length;
-    console.log(`run ${n}: ${recs.length} cases in ${Math.round((Date.now() - t0) / 1000)} s, ${failed} CLI failures -> results/run-${n}.jsonl`);
+    console.log(`run ${n}: ${recs.length} cases in ${Math.round((Date.now() - t0) / 1000)} s, ${failed} CLI failures -> ${out}/run-${n}.jsonl`);
   }
 }
 
