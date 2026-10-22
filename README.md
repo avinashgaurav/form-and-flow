@@ -4,6 +4,11 @@
 
 A fitness and food coach for India. It plans training around your real week, logs Indian meals by typing (English or Hinglish) or by photo, and explains every change it makes.
 
+![Form & Flow: the week the code builds, a session, and a typed Indian meal turned into items (sample data)](docs/demo.gif)
+
+> [!NOTE]
+> **Evals.** A held-out coach eval (27 cases, 3 runs, Opus 5.5) found two safety phrasings that reached the model and a validator rule that rejected nearly half the good replies. After the fixes: safety routing 7/9 to **9/9**, false alarms on good replies 23/47 to **4/47**, echoed user figures reaching the user 1 to **0**, wrong numbers 0/54 both times. The fixes were written from that same set, so treat the after-numbers as an upper bound. Details in [EVALS.md](EVALS.md).
+
 **Live:** https://form-and-flow.vercel.app
 
 - **iPhone:** open the link in Safari, tap Share, then "Add to Home Screen".
