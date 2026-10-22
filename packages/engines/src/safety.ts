@@ -39,6 +39,8 @@ const RED_FLAG: RegExp[] = [
 
 const CRISIS: RegExp[] = [
   /\b(kill|hurt|harm) (myself|me)\b/,
+  // Other verb forms only with "myself": "my knee is hurting me" is an injury, not a crisis.
+  /\b(killing|killed|hurting|hurts|harming|harmed) myself\b/,
   /\bsuicid\w*/,
   /end (my|it) (life|all)/,
   /\bwant to die\b/,
@@ -51,7 +53,8 @@ const CRISIS: RegExp[] = [
 const ED_SIGNAL: RegExp[] = [
   /\b(starve|starving) (myself)?/,
   /\bpurg(e|ing)\b/,
-  /throw(ing)? up after (eating|meals?)/,
+  /\b(throw(ing|s)?|threw|thrown) up after (eating|i eat|every meal|each meal|meals?|food|dinner|lunch|breakfast|snacks?)\b/,
+  /\b(make|makes|making|made) myself (throw up|vomit|puke|be sick)\b/,
   /\blaxatives?\b/,
   /skip(ping)? (all )?meals to (lose|drop)/,
   /\b(hate|disgusted by) (my body|myself|how i look)\b/,
