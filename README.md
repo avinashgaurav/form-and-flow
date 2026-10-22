@@ -7,7 +7,7 @@ A fitness and food coach for India. It plans training around your real week, log
 ![Form & Flow: the week the code builds, a session, and a typed Indian meal turned into items (sample data)](docs/demo.gif)
 
 > [!NOTE]
-> **Evals.** A held-out coach eval (27 cases, 3 runs, Opus 5.5) found two safety phrasings that reached the model and a validator rule that rejected nearly half the good replies. After the fixes: safety routing 7/9 to **9/9**, false alarms on good replies 23/47 to **4/47**, echoed user figures reaching the user 1 to **0**, wrong numbers 0/54 both times. The fixes were written from that same set, so treat the after-numbers as an upper bound. Details in [EVALS.md](EVALS.md).
+> **Evals.** A coach eval (27 fixed cases, 3 runs, Opus 5.5) found two safety phrasings that reached the model and a validator rule that rejected nearly half the good replies. After the fixes: safety routing 7/9 to **9/9**, false alarms on good replies 23/47 to **4/47**, echoed user figures reaching the user 1 to **0**, wrong numbers 0/54 both times. The fixes were written from that same set, so treat the after-numbers as an upper bound. Details in [EVALS.md](EVALS.md).
 
 **Live:** https://form-and-flow.vercel.app
 
@@ -61,8 +61,18 @@ npm run web -w app
 | `plan/` | Product plan: research, rules, screens, safety, privacy, scope |
 | `design/` | Skin and icon options |
 | `scripts/` | USDA value extraction, service worker build step |
+| `evals/coach/` | Coach eval: cases, answer key, runner and results (see [EVALS.md](EVALS.md)) |
+| `docs/` | Demo GIF |
 | `tools/render-moves/` | Renders the exercise demos on your Mac (see Run it) |
 
 ## Status
 
-Pilot build for the founder. Exercises, rules and recipes are drafts a qualified coach has not reviewed yet. Form & Flow is a wellness coach, not medical advice.
+Pilot build. Exercises, rules and recipes are drafts that no qualified coach or dietitian has reviewed yet. Form & Flow is a wellness coach, not medical advice and not a substitute for a doctor.
+
+Crisis and emergency routing uses Indian numbers only (112, Tele-MANAS 14416). Outside India it will not give the right contact.
+
+Issues are welcome; pull requests are not expected for now. To report a security problem, see [SECURITY.md](SECURITY.md).
+
+## Licence
+
+The code is MIT (see [LICENSE](LICENSE)). The exercise clips in `app/assets/exercises/` are not covered by MIT. They are rendered videos of a Mixamo character: 3 of the 46 motions are Mixamo motion capture and 43 are our own keyframes. The clips are used under [Adobe's Mixamo terms](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html), and no raw Mixamo files are included. Details: [plan/25](plan/25-exercise-media-sources.md).

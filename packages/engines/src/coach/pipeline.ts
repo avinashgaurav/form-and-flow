@@ -1,6 +1,6 @@
 import { shortenSession, substitutes } from '../adjust';
 import { getExercise } from '../exercises';
-import { classifyText, EMERGENCY } from '../safety';
+import { classifyText, CRISIS_OPENER, EMERGENCY } from '../safety';
 import type { Equipment, Experience, PlannedSession, Restriction } from '../types';
 import { findCards, getCard, type EvidenceCard } from './cards';
 import { COACH_MESSAGE_MAX, renderCoachPrompt, type CoachTone } from './prompt';
@@ -344,7 +344,7 @@ export async function coachTurn(message: string, ctx: CoachContext, opts: { aiAl
     if (safety.confidence === 'needs_confirm') {
       return reply(`Just to check: do you mean an injury from training, or thoughts of harming yourself? If it is the second, please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'needs_confirm');
     }
-    return reply(`Please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}. If you are in danger, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'crisis');
+    return reply(`${CRISIS_OPENER} Please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}. If you are in danger, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'crisis');
   }
   if (safety.kind === 'red_flag') {
     if (safety.confidence === 'needs_confirm') return reply('Just to check: are you having chest pain, fainting, severe breathlessness or one-sided weakness right now?', [], 'template', [], 'needs_confirm');

@@ -1,6 +1,9 @@
 {
   "name": "form-and-flow",
   "private": true,
+  "description": "Fitness and food coach for India: Expo app, Supabase, and an AI coach whose numbers come from tested code",
+  "license": "MIT",
+  "repository": "github:avinashgaurav/form-and-flow",
   "workspaces": [
     "app",
     "packages/*"

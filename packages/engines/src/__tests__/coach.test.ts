@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { buildFacts, CARDS, COACH_CARD_IDS, coachTurn, renderCoachPrompt, toModelOutput, unsourcedNumbers, validateModelOutput, type CoachContext, type ModelCall } from '../coach';
 import { buildWeek } from '../planner';
+import { CRISIS_OPENER, EMERGENCY } from '../safety';
 
 const week = buildWeek({ goal: 'muscle_gain', experience: '6to24m', location: 'home', equipment: ['dumbbells', 'bench'], daysAvailable: [0, 2, 4], sessionMinutes: 45 }, [], '2026-10-19');
 const today = week.sessions[0]!;
@@ -208,5 +209,16 @@ test('training-injury wording asks one question, shows the helpline and never ca
   assert.equal(r.safety, 'needs_confirm');
   assert.match(r.text, /Tele-MANAS/);
   assert.equal(r.actions[0]?.type, 'escalate_safety');
+  assert.equal(called, false);
+});
+
+test('confirmed crisis gets the fixed reply with opener, helpline and 112, and never calls the model', async () => {
+  let called = false;
+  const spy: ModelCall = async () => { called = true; return { text: 'x' }; };
+  const r = await coachTurn('I want to end my life', ctx, { aiAllowed: true, model: spy });
+  assert.equal(r.safety, 'crisis');
+  assert.ok(r.text.startsWith(CRISIS_OPENER));
+  assert.match(r.text, /Tele-MANAS/);
+  assert.match(r.text, new RegExp(EMERGENCY.number));
   assert.equal(called, false);
 });

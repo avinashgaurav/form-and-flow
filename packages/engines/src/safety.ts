@@ -125,6 +125,9 @@ export function classifyText(raw: string): SafetyResult {
   return { kind: 'none', confidence: 'confirmed', matched: [] };
 }
 
+/** Opening line of every confirmed-crisis message, in the coach and on the safety screen. Wording pending professional review (plan/14). */
+export const CRISIS_OPENER = 'Thank you for telling me.';
+
 /** Fixed emergency guidance (claim R-22). Works offline; shown by the safety stop screen. */
 export const EMERGENCY = {
   number: '112',

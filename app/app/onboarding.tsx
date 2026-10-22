@@ -235,7 +235,7 @@ export default function Onboarding() {
             <T v="h2">What it does not do</T>
             <T>Diagnose, treat, prescribe supplements or medicines, or replace your doctor or physiotherapist.</T>
           </Card>
-          <Banner tone="warn" title="Draft content" body="Exercises and rules in this build are drafts that a qualified coach has not reviewed yet. It is for the founder pilot only." />
+          <Banner tone="warn" title="Draft content" body="Exercises and rules in this build are drafts that a qualified coach has not reviewed yet. It is for pilot use only." />
           <Button label="Get started" onPress={() => go(1)} tall />
         </View>
       )}
