@@ -7,7 +7,7 @@ A fitness and food coach for India. It plans training around your real week, log
 ![Form & Flow: the week the code builds, a session, and a typed Indian meal turned into items (sample data)](docs/demo.gif)
 
 > [!NOTE]
-> **Evals.** A coach eval (27 fixed cases, 3 runs, Opus 5.5) found two safety phrasings that reached the model and a validator rule that rejected nearly half the good replies. After the fixes: safety routing 7/9 to **9/9**, false alarms on good replies 23/47 to **4/47**, echoed user figures reaching the user 1 to **0**, wrong numbers 0/54 both times. The fixes were written from that same set, so treat the after-numbers as an upper bound. Details in [EVALS.md](EVALS.md).
+> **Testing the AI coach.** I tested the coach on 27 fixed cases and ran the test 3 times, using Opus 5.5. The test found two wordings of a safety message that reached the AI instead of the fixed safety reply. It also found a checker rule that rejected nearly half the good replies. After the fixes: safety messages handled correctly went from 7/9 to **9/9**. Good replies wrongly flagged went from 23/47 to **4/47**. User figures repeated back and reaching the user went from 1 to **0**. Wrong numbers were 0/54 both times. I wrote the fixes after seeing these same cases, so treat the after-fix numbers as a best case. Details in [EVALS.md](EVALS.md).
 
 **Live:** https://form-and-flow.vercel.app
 
@@ -61,7 +61,7 @@ npm run web -w app
 | `plan/` | Product plan: research, rules, screens, safety, privacy, scope |
 | `design/` | Skin and icon options |
 | `scripts/` | USDA value extraction, service worker build step |
-| `evals/coach/` | Coach eval: cases, answer key, runner and results (see [EVALS.md](EVALS.md)) |
+| `evals/coach/` | Coach tests: test cases, the correct answers, the script that runs them, and results (see [EVALS.md](EVALS.md)) |
 | `docs/` | Demo GIF |
 | `tools/render-moves/` | Renders the exercise demos on your Mac (see Run it) |
 
