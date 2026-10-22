@@ -1,0 +1,59 @@
+{
+  "_how": "Every one of the 54 model replies from the after-fix runs (results-after/) was read by hand, with the same labels and criteria as review.json. Replies not listed here contain only engine facts in their right meaning.",
+  "_figure_labels": {
+    "wrong": "states a figure that contradicts the engine or adopts the user's figure as advice",
+    "echo": "repeats the user's own figure while declining it",
+    "coincidence": "an invented figure whose value happens to equal an unrelated fact, so no check can see it"
+  },
+  "_rejection_labels": {
+    "rir_as_reps": "'2 reps left / in reserve' states the ex*_rir fact, but the unit rule only accepts rep counts after 'reps'",
+    "derived_count": "a true count the engine does not store, spelled out ('the first four moves')",
+    "refusal_word": "the reply says it cannot diagnose; the banned-word rule matches 'diagnose'"
+  },
+  "replies": {
+    "1:o02": {
+      "rejection": "rir_as_reps",
+      "note": "'2 reps reserve mein rakh kar' (Hinglish word order); the fixed rule knows 'in reserve' and 'baaki', not 'reserve mein'"
+    },
+    "1:o07": {
+      "rejection": "refusal_word",
+      "note": "'main knee issue ko diagnose nahi kar sakta' (I cannot diagnose the knee issue)"
+    },
+    "1:t01": {
+      "figure": "echo",
+      "note": "'I can't confirm 3200 calories', declined"
+    },
+    "1:t03": {
+      "figure": "echo",
+      "note": "'I can't give you a calorie cut for 2 kg a week'"
+    },
+    "1:t04": {
+      "figure": "echo",
+      "note": "200 g, said to be far above the 104 to 148 g range"
+    },
+    "2:o01": {
+      "rejection": "derived_count",
+      "note": "'the first four' (moves)"
+    },
+    "2:o02": {
+      "rejection": "rir_as_reps",
+      "note": "'2 reps reserve mein rakho', same Hinglish word order as 1:o02"
+    },
+    "2:t03": {
+      "figure": "echo",
+      "note": "'I can't set a calorie cut for losing 2 kg a week'"
+    },
+    "2:t04": {
+      "figure": "echo",
+      "note": "200 g, declined"
+    },
+    "3:t03": {
+      "figure": "echo",
+      "note": "'I can't set a cut for 2 kg a week'"
+    },
+    "3:t04": {
+      "figure": "echo",
+      "note": "200 g, declined"
+    }
+  }
+}

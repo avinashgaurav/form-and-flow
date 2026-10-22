@@ -111,11 +111,6 @@ export function buildFacts(ctx: CoachContext): Record<string, number | string> {
   return f;
 }
 
-/** Numbers the cards themselves state are also allowed when the card is cited. */
-function cardNumbers(cards: EvidenceCard[]): number[] {
-  return cards.flatMap((c) => (c.summary.match(/\d+(\.\d+)?/g) ?? []).map(Number));
-}
-
 export function numbersIn(text: string): number[] {
   return (text.replace(/,(?=\d{3})/g, '').match(/\d+(\.\d+)?/g) ?? []).map(Number);
 }
@@ -127,6 +122,7 @@ const UNIT_KINDS: { word: RegExp; key: RegExp }[] = [
   { word: /^(min|mins|minutes?)$/i, key: /minutes$/ },
   { word: /^sets?$/i, key: /_sets$/ },
   { word: /^reps?$/i, key: /_rep_(min|max)$/ },
+  { word: /^rir$/i, key: /_rir$/ },
   { word: /^(s|sec|secs|seconds?)$/i, key: /_rest_sec$/ },
   { word: /^sessions?$/i, key: /^sessions_/ },
   { word: /^exercises?$/i, key: /^today_exercises$/ },
@@ -137,23 +133,36 @@ const UNIT_KINDS: { word: RegExp; key: RegExp }[] = [
 /** Spelled-out numbers dodge the digit check, so anything from three upwards is refused outright. */
 const NUMBER_WORDS = /\b(three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|dozen)\b/i;
 
-/**
- * Number provenance: every number in the text must equal a fact exactly. When a unit follows the
- * number ("90 g", "45 min"), the fact must also be of that kind, so a rest time cannot pass as grams.
- * Numbers in a cited evidence card are allowed as written there.
- */
-export function unsourcedNumbers(text: string, facts: Record<string, number | string>, cards: EvidenceCard[] = []): number[] {
-  const numeric = Object.entries(facts).filter((e): e is [string, number] => typeof e[1] === 'number');
-  const fromCards = cardNumbers(cards);
-  const out: number[] = [];
+/** "2 reps in reserve", "2 reps left in the tank": the number is the RIR figure, not a rep count. */
+const RIR_AFTER_REPS = /^\s+(?:still\s+|more\s+)?(?:left\s+)?(?:in reserve|in the tank|to spare|short of failure|left|baaki|bache|bachi)\b/i;
+const RIR_KIND = UNIT_KINDS.find((u) => u.word.test('rir'))!;
+
+/** Each number in the text with the kind of unit that follows it, if any. */
+function figures(text: string): { n: number; kind?: (typeof UNIT_KINDS)[number] }[] {
   // A range takes the unit after it for both ends: "90 to 140 g" is two gram figures.
   const clean = text.replace(/,(?=\d{3})/g, '').replace(/%/g, ' percent');
   const ranged = clean.replace(/(\d+(?:\.\d+)?)(\s*(?:to|-|–)\s*)(\d+(?:\.\d+)?)\s*([A-Za-z]+)/g, '$1 $4$2$3 $4');
-  for (const m of ranged.matchAll(/(\d+(?:\.\d+)?)\s*([A-Za-z]+)?/g)) {
-    const n = Number(m[1]);
-    const kind = m[2] ? UNIT_KINDS.find((u) => u.word.test(m[2]!)) : undefined;
+  return [...ranged.matchAll(/(\d+(?:\.\d+)?)\s*([A-Za-z]+)?/g)].map((m) => {
+    let kind = m[2] ? UNIT_KINDS.find((u) => u.word.test(m[2]!)) : undefined;
+    if (m[2] && /^reps?$/i.test(m[2]) && RIR_AFTER_REPS.test(ranged.slice(m.index! + m[0].length))) kind = RIR_KIND;
+    return { n: Number(m[1]), kind };
+  });
+}
+
+/**
+ * Number provenance: every number in the text must equal a fact exactly. When a unit follows the
+ * number ("90 g", "45 min"), the fact must also be of that kind, so a rest time cannot pass as grams.
+ * Numbers in a cited evidence card are allowed as written there: with a unit, only in the same kind
+ * of unit, so the protein card's "2.0 g" cannot vouch for "2 kg".
+ */
+export function unsourcedNumbers(text: string, facts: Record<string, number | string>, cards: EvidenceCard[] = []): number[] {
+  const numeric = Object.entries(facts).filter((e): e is [string, number] => typeof e[1] === 'number');
+  const fromCards = cards.flatMap((c) => figures(c.summary));
+  const out: number[] = [];
+  for (const { n, kind } of figures(text)) {
     const pool = kind ? numeric.filter(([k]) => kind.key.test(k)).map(([, v]) => v) : numeric.map(([, v]) => v);
-    if (!pool.includes(n) && !fromCards.includes(n)) out.push(n);
+    const onCard = fromCards.some((c) => c.n === n && (!kind || c.kind === kind));
+    if (!pool.includes(n) && !onCard) out.push(n);
   }
   return out;
 }
@@ -332,6 +341,9 @@ export function systemPrompt(ctx: CoachContext, facts: Record<string, number | s
 export async function coachTurn(message: string, ctx: CoachContext, opts: { aiAllowed: boolean; model?: ModelCall }): Promise<CoachReply> {
   const safety = classifyText(message);
   if (safety.kind === 'crisis') {
+    if (safety.confidence === 'needs_confirm') {
+      return reply(`Just to check: do you mean an injury from training, or thoughts of harming yourself? If it is the second, please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'needs_confirm');
+    }
     return reply(`Please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}. If you are in danger, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'crisis');
   }
   if (safety.kind === 'red_flag') {

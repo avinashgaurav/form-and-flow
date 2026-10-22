@@ -167,3 +167,46 @@ test('both ends of a range, kilograms and percentages need a matching source', (
   assert.deepEqual(unsourcedNumbers('Make it 90% protein.', f), [90]);
   assert.deepEqual(unsourcedNumbers('Rest 90 s.', f), []);
 });
+
+test('reps in reserve match the plan RIR figure, not a rep-range figure', () => {
+  // Regression: the eval's good replies said "2 reps in reserve" and were rejected as rep counts.
+  const f = { ex1_sets: 3, ex1_rep_min: 8, ex1_rep_max: 12, ex1_rir: 2 };
+  for (const t of [
+    'Stop each set with 2 reps in reserve.',
+    'Finish with about 2 reps left in the tank.',
+    'Keep 2 reps still in the tank.',
+    'Stop with 2 reps left in reserve.',
+    'Stop about 2 reps short of failure.',
+    'Still have about 2 reps left? Go heavier.',
+    'Keep 2 reps to spare.',
+    'Aim for 2 RIR on every set.',
+    'Har set mein 2 reps baaki rahein.',
+  ]) assert.deepEqual(unsourcedNumbers(t, f), [], t);
+  // The RIR wording only accepts the RIR figure, and plain reps still need a rep-range figure.
+  assert.deepEqual(unsourcedNumbers('Stop with 3 reps in reserve.', f), [3]);
+  assert.deepEqual(unsourcedNumbers('Stop with 8 reps in reserve.', f), [8]);
+  assert.deepEqual(unsourcedNumbers('Aim for 8 to 12 reps.', f), []);
+  assert.deepEqual(unsourcedNumbers('Do 2 reps.', f), [2]);
+});
+
+test('a cited card number passes only in the unit the card gives it', () => {
+  // Regression: "2 kg a week" passed because the protein card says "2.0 g".
+  const protein = CARDS.filter((c) => c.id === 'ev-protein-range');
+  assert.deepEqual(unsourcedNumbers('I cannot set a calorie cut for 2 kg a week.', {}, protein), [2]);
+  assert.deepEqual(unsourcedNumbers('About 1.4 to 2.0 g of protein per kg is plenty.', {}, protein), []);
+  assert.deepEqual(unsourcedNumbers('Up to 2 grams per kilo; above 1.6 g/kg adds little.', {}, protein), []);
+  const pace = CARDS.filter((c) => c.id === 'ev-weight-loss-rate');
+  assert.equal(pace.length, 1);
+  assert.deepEqual(unsourcedNumbers('A safe pace is 0.5 to 1 kg a week.', {}, pace), []);
+  assert.deepEqual(unsourcedNumbers('Aim for 1 g a week.', {}, pace), [1]);
+});
+
+test('training-injury wording asks one question, shows the helpline and never calls the model', async () => {
+  let called = false;
+  const spy: ModelCall = async () => { called = true; return { text: 'x' }; };
+  const r = await coachTurn('afraid of hurting myself on deadlifts', ctx, { aiAllowed: true, model: spy });
+  assert.equal(r.safety, 'needs_confirm');
+  assert.match(r.text, /Tele-MANAS/);
+  assert.equal(r.actions[0]?.type, 'escalate_safety');
+  assert.equal(called, false);
+});

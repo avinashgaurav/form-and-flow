@@ -39,10 +39,12 @@ const RED_FLAG: RegExp[] = [
 
 const CRISIS: RegExp[] = [
   /\b(kill|hurt|harm) (myself|me)\b/,
+  // Other verb forms only with "myself": "my knee is hurting me" is an injury, not a crisis.
+  /\b(killing|killed|hurting|hurts|harming|harmed) myself\b/,
   /\bsuicid\w*/,
   /end (my|it) (life|all)/,
   /\bwant to die\b/,
-  /\bself[- ]?harm\b/,
+  /\bself[- ]?harm\w*/,
   /\bkhudkushi\b/,
   /marna (chahta|chahti|hai)/,
   /jeena nahi (chahta|chahti)/,
@@ -51,7 +53,9 @@ const CRISIS: RegExp[] = [
 const ED_SIGNAL: RegExp[] = [
   /\b(starve|starving) (myself)?/,
   /\bpurg(e|ing)\b/,
-  /throw(ing)? up after (eating|meals?)/,
+  /\b(throw(ing|s)?|threw|thrown) up after (eating|i eat|every meal|each meal|meals?|food|dinner|lunch|breakfast|snacks?)\b/,
+  /\b(vomit\w*|puk(e|es|ed|ing)) after (eating|i eat|every meal|each meal|meals?|food|dinner|lunch|breakfast|snacks?)\b/,
+  /\b(make|makes|making|made) myself (throw up|vomit|puke|be sick|sick)\b/,
   /\blaxatives?\b/,
   /skip(ping)? (all )?meals to (lose|drop)/,
   /\b(hate|disgusted by) (my body|myself|how i look)\b/,
@@ -63,6 +67,11 @@ const OUT_OF_SCOPE: RegExp[] = [
   /\b(diagnose|diagnosis|what disease|is it cancer|prescribe)\b/,
   /\b(steroids?|anabolic|sarms?|peptides?)\b/,
 ];
+
+// "Hurting myself on deadlifts" is usually a training injury. Still treated as a crisis, but the coach
+// asks one question (with the helpline) instead of assuming. Recall is kept: nothing is dropped.
+const TRAINING_CONTEXT = /\b(hurt|hurting|hurts|harm|harming|harmed) myself (on|during|while|doing|lifting|in|at) (the |a |my |heavy |those |these )?(deadlifts?|squats?|bench|press(es)?|lifts?|lifting|gym|workouts?|training|runs?|running|exercises?|sets?|reps?|pull ?ups?|push ?ups?|lunges?|rows?|cardio|yoga|class)\b/;
+const ONLY_HURT_HARM = /^(hurt|hurting|hurts|harm|harming|harmed) (myself|me)$/;
 
 const NEGATION = /\b(no|not|never|without|nahi|nhi|koi nahi)\b/;
 
@@ -90,7 +99,10 @@ function lowCalorieRequest(text: string): string | null {
 export function classifyText(raw: string): SafetyResult {
   const text = normalise(raw);
   const crisis = matches(text, CRISIS);
-  if (crisis.length) return { kind: 'crisis', confidence: 'confirmed', matched: crisis };
+  if (crisis.length) {
+    const training = TRAINING_CONTEXT.test(text) && crisis.every((m) => ONLY_HURT_HARM.test(m));
+    return { kind: 'crisis', confidence: training ? 'needs_confirm' : 'confirmed', matched: crisis };
+  }
 
   const red = matches(text, RED_FLAG);
   if (red.length) {
