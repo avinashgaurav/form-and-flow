@@ -1,5 +1,7 @@
 # Form & Flow
 
+[![CI](https://github.com/avinashgaurav/form-and-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/avinashgaurav/form-and-flow/actions/workflows/ci.yml)
+
 A fitness and food coach for India. It plans training around your real week, logs Indian meals by typing (English or Hinglish) or by photo, and explains every change it makes.
 
 **Live:** https://form-and-flow.vercel.app
