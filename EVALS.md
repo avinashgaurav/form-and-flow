@@ -1,4 +1,4 @@
-# Coach test: new cases the coach was never tuned on
+# Coach test: a first run on new cases, then a rerun after the fixes
 
 This test asks two questions. Does the user ever see a number that the app's own calculation code (the engines) did not decide? And do safety messages skip the AI completely? I ran the test three times on 2026-10-22. Then I fixed what it found and ran it three more times. This is a small, first measurement.
 
