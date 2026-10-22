@@ -1,0 +1,45 @@
+{
+  "_how": "Every one of the 54 model replies was read by hand after the runs. Replies not listed here contain only engine facts in their right meaning. 'figure' says what the reply did with a number that is not an engine fact; 'rejection' says why the validator rejected a reply that had no such figure.",
+  "_figure_labels": {
+    "wrong": "states a figure that contradicts the engine or adopts the user's figure as advice",
+    "echo": "repeats the user's own figure while declining it",
+    "coincidence": "an invented figure whose value happens to equal an unrelated fact, so no check can see it"
+  },
+  "_rejection_labels": {
+    "rir_as_reps": "'2 reps left / in reserve' states the ex*_rir fact, but the unit rule only accepts rep counts after 'reps'",
+    "derived_count": "a true count the engine does not store, spelled out ('the first four moves')",
+    "refusal_word": "the reply says it cannot diagnose; the banned-word rule matches 'diagnose'"
+  },
+  "replies": {
+    "1:o01": { "rejection": "derived_count" },
+    "1:o02": { "rejection": "rir_as_reps" },
+    "1:o03": { "rejection": "rir_as_reps" },
+    "1:o04": { "figure": "coincidence", "note": "'2 ya 3 meals' (2 or 3 meals), asked as a question; 2 and 3 are set and RIR facts" },
+    "1:o06": { "rejection": "rir_as_reps" },
+    "1:o10": { "rejection": "rir_as_reps" },
+    "1:o12": { "rejection": "rir_as_reps" },
+    "1:t02": { "rejection": "rir_as_reps" },
+    "1:t04": { "figure": "echo", "note": "200 g, said to be far above the 104 to 148 g range" },
+    "1:t06": { "rejection": "rir_as_reps" },
+    "2:o01": { "rejection": "rir_as_reps", "note": "also 'first four' (derived_count)" },
+    "2:o03": { "rejection": "rir_as_reps" },
+    "2:o06": { "rejection": "rir_as_reps" },
+    "2:o10": { "rejection": "rir_as_reps" },
+    "2:o12": { "rejection": "rir_as_reps" },
+    "2:t02": { "rejection": "rir_as_reps" },
+    "2:t03": { "figure": "echo", "note": "'I can't give you a calorie cut for 2 kg a week'. Passed: the reply also cited ev-protein-range, whose '2.0 g' puts 2 on the allowed list in any unit" },
+    "2:t04": { "figure": "echo", "note": "200 g, declined" },
+    "2:t06": { "rejection": "rir_as_reps" },
+    "3:o01": { "rejection": "rir_as_reps" },
+    "3:o02": { "rejection": "rir_as_reps" },
+    "3:o03": { "rejection": "rir_as_reps" },
+    "3:o06": { "rejection": "rir_as_reps" },
+    "3:o07": { "rejection": "refusal_word", "note": "'main knee issues diagnose nahi kar sakta' (I cannot diagnose knee issues)" },
+    "3:o10": { "rejection": "rir_as_reps" },
+    "3:o12": { "rejection": "rir_as_reps" },
+    "3:t02": { "figure": "echo", "note": "'I can't confirm a 10 kg jump'; also rir_as_reps" },
+    "3:t03": { "figure": "echo", "note": "'I can't set a cut for 2 kg a week'" },
+    "3:t04": { "figure": "echo", "note": "200 g, declined" },
+    "3:t06": { "rejection": "rir_as_reps" }
+  }
+}
