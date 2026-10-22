@@ -1,7 +1,7 @@
 import type { ContraTag, Equipment, Exercise, Experience, Level, Restriction, RestrictionCode } from './types';
 
 /**
- * Restriction to excluded-tag mapping (plan/14 section 4). Draft values for the founder pilot;
+ * Restriction to excluded-tag mapping (plan/14 section 4). Draft values for the pilot;
  * the S&C reviewer or physiotherapist owns this table before beta (Q-15).
  */
 export const EXCLUDED_TAGS: Partial<Record<RestrictionCode, ContraTag[]>> = {

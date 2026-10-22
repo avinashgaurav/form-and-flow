@@ -2,7 +2,9 @@
 
 India-first AI fitness and nutrition coach · Android and iOS · adults 18+ · version 0.3 · 19 October 2026
 
-**Status:** research and planning only. No code, infrastructure or accounts have been created. Phase 2 (building) starts only when you approve this plan (gate G-01).
+> **Note (October 2026):** these planning docs were written before the build, for a solo founder, so "you" means the product owner. The build has since started; see the [root README](../README.md) for what exists today.
+
+**Status (at the time of writing):** research and planning only. No code, infrastructure or accounts have been created. Phase 2 (building) starts only when you approve this plan (gate G-01).
 
 ## How to read this
 

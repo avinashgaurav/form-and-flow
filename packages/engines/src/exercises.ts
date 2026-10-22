@@ -1,7 +1,7 @@
 import type { Exercise } from './types';
 
 /**
- * Pilot exercise catalogue. Every entry is a DRAFT written for the founder pilot: cues and
+ * Pilot exercise catalogue. Every entry is a DRAFT written for the pilot: cues and
  * contraindication tags must be reviewed by a qualified S&C professional before anyone else uses
  * the app (plan/18, gate G-09). The UI shows an "unreviewed" badge while reviewStatus is 'draft'.
  */
