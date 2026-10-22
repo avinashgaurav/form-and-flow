@@ -66,3 +66,7 @@ npm run web -w app
 ## Status
 
 Pilot build for the founder. Exercises, rules and recipes are drafts a qualified coach has not reviewed yet. Form & Flow is a wellness coach, not medical advice.
+
+## Licence
+
+The code is MIT (see [LICENSE](LICENSE)). The exercise clips in `app/assets/exercises/` are rendered from Adobe Mixamo assets and our own animations, and follow [Adobe's Mixamo terms](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html), not MIT; details in [plan/25](plan/25-exercise-media-sources.md).

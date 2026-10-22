@@ -17,7 +17,7 @@ export default function Safety() {
       <View style={{ gap: space.lg, paddingTop: space.xl }}>
         <T v="title" style={{ color: color.danger }}>{crisis ? 'You do not have to handle this alone' : 'Stop exercising now'}</T>
         <Card tone="danger">
-          <T>{crisis ? 'Please talk to someone now. Tele-MANAS is free, 24 hours a day, in many languages.' : 'If this is happening now, call for emergency help. Sit or lie down somewhere safe.'}</T>
+          <T>{crisis ? "I'm really glad you reached out. Please talk to someone now. Tele-MANAS is free, 24 hours a day, in many languages." : 'If this is happening now, call for emergency help. Sit or lie down somewhere safe.'}</T>
         </Card>
         {crisis ? (
           <>
