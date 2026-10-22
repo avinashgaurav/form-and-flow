@@ -200,3 +200,13 @@ test('a cited card number passes only in the unit the card gives it', () => {
   assert.deepEqual(unsourcedNumbers('A safe pace is 0.5 to 1 kg a week.', {}, pace), []);
   assert.deepEqual(unsourcedNumbers('Aim for 1 g a week.', {}, pace), [1]);
 });
+
+test('training-injury wording asks one question, shows the helpline and never calls the model', async () => {
+  let called = false;
+  const spy: ModelCall = async () => { called = true; return { text: 'x' }; };
+  const r = await coachTurn('afraid of hurting myself on deadlifts', ctx, { aiAllowed: true, model: spy });
+  assert.equal(r.safety, 'needs_confirm');
+  assert.match(r.text, /Tele-MANAS/);
+  assert.equal(r.actions[0]?.type, 'escalate_safety');
+  assert.equal(called, false);
+});

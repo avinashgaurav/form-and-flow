@@ -90,3 +90,25 @@ for (const t of [
 ]) {
   test(`benign look-alike: ${t}`, () => assert.equal(classifyText(t).kind, 'none'));
 }
+
+for (const t of ['I have been self harming again', 'I self-harmed last week', 'thinking about selfharm']) {
+  test(`crisis, self-harm suffixes: ${t}`, () => assert.equal(classifyText(t).kind, 'crisis'));
+}
+
+for (const t of ['I puke after dinner', 'vomiting after meals every day', 'I keep making myself sick after eating']) {
+  test(`eating-disorder signal, vomit and puke: ${t}`, () => assert.equal(classifyText(t).kind, 'ed_signal'));
+}
+
+// A training injury is still a crisis match, but the coach asks first (with the helpline) instead of assuming.
+for (const t of ['afraid of hurting myself on deadlifts', 'I hurt myself on the bench yesterday', 'worried I will harm myself doing heavy squats']) {
+  test(`training injury wording asks to confirm: ${t}`, () => {
+    const r = classifyText(t);
+    assert.equal(r.kind, 'crisis');
+    assert.equal(r.confidence, 'needs_confirm');
+  });
+}
+
+// Without a training word, or with any other crisis wording, it stays a confirmed crisis.
+for (const t of ['I want to hurt myself while alone', 'some days I feel like hurting myself', 'I hurt myself on purpose', 'I want to kill myself on the bench']) {
+  test(`confirmed crisis, no training excuse: ${t}`, () => assert.deepEqual([classifyText(t).kind, classifyText(t).confidence], ['crisis', 'confirmed']));
+}

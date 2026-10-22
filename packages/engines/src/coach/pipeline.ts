@@ -111,7 +111,6 @@ export function buildFacts(ctx: CoachContext): Record<string, number | string> {
   return f;
 }
 
-
 export function numbersIn(text: string): number[] {
   return (text.replace(/,(?=\d{3})/g, '').match(/\d+(\.\d+)?/g) ?? []).map(Number);
 }
@@ -342,6 +341,9 @@ export function systemPrompt(ctx: CoachContext, facts: Record<string, number | s
 export async function coachTurn(message: string, ctx: CoachContext, opts: { aiAllowed: boolean; model?: ModelCall }): Promise<CoachReply> {
   const safety = classifyText(message);
   if (safety.kind === 'crisis') {
+    if (safety.confidence === 'needs_confirm') {
+      return reply(`Just to check: do you mean an injury from training, or thoughts of harming yourself? If it is the second, please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'needs_confirm');
+    }
     return reply(`Please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}. If you are in danger, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'crisis');
   }
   if (safety.kind === 'red_flag') {
