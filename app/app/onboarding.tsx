@@ -15,6 +15,7 @@ import {
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, View } from 'react-native';
+import { stepFix } from '../src/lib/onboardingStep';
 import { deviceTimeZone, makePlan, plural } from '../src/lib/plan';
 import { useStore } from '../src/store/store';
 import { NOTICE_VERSION, emptyDraft, type AppState, type Profile } from '../src/store/types';
@@ -120,7 +121,7 @@ export default function Onboarding() {
   // checked here: send it back to the first unfinished step, so no safety question is skipped.
   useEffect(() => {
     if (state.onboarded) return;
-    const fix = d.step > ready ? ready : d.step === 4 && readiness.disposition === 'clear' ? 5 : d.step > 6 || (d.step === 6 && !state.plan) ? 5 : null;
+    const fix = stepFix(d.step, ready, readiness.disposition, !!state.plan);
     if (fix !== null && fix !== d.step) dispatch({ type: 'draft', patch: { step: fix } });
   }, [state.onboarded, d.step, ready, readiness.disposition, state.plan, dispatch]);
 
