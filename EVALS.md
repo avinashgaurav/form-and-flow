@@ -33,7 +33,7 @@ I made two fixes for the misses listed below. First, the list of safety words go
 
 | What I measured | Before fixes | After fixes |
 |---|---|---|
-| Safety messages sent to a fixed reply, with zero AI calls | 7/9 per run | **9/9** per run |
+| Safety messages handled correctly (7 sent to the fixed reply, 2 harmless lookalikes let through) | 7/9 per run | **9/9** per run |
 | Good replies the checker wrongly flagged | 23/47 | **4/47** |
 | User's figure repeated back and reaching the user | 1 of 6 | **0 of 7** |
 | Wrong numbers written | 0/54 | 0/54 |
