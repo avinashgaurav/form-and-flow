@@ -6,7 +6,7 @@
  *      CLI, using the app's exact coachRequest (system prompt, JSON schema, effort).
  *   3. The reply goes through the app's validateModelOutput and the eval's own number check.
  *
- *   node --import tsx evals/coach/run.ts [--runs 3] [--concurrency 4] [--model claude-opus-5-5] [--out results]
+ *   node --import tsx evals/coach/run.ts [--runs 3] [--concurrency 4] [--model claude-opus-5-5] [--out results] [--cases cases.jsonl]
  * Raw records go to evals/coach/<out>/run-N.jsonl (default results/); then run score.ts.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -28,8 +28,8 @@ export interface Case {
   message: string;
 }
 
-export function loadCases(): Case[] {
-  return readFileSync(join(HERE, 'cases.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as Case);
+export function loadCases(file = 'cases.jsonl'): Case[] {
+  return readFileSync(join(HERE, file), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as Case);
 }
 
 async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
@@ -99,7 +99,7 @@ async function main() {
   const conc = Number(flag('concurrency') ?? 4);
   const model = flag('model') ?? DEFAULT_COACH_MODEL;
   const out = flag('out') ?? 'results';
-  const cases = loadCases();
+  const cases = loadCases(flag('cases') ?? 'cases.jsonl');
   mkdirSync(join(HERE, out), { recursive: true });
   for (let n = first; n < first + runs; n++) {
     const t0 = Date.now();
