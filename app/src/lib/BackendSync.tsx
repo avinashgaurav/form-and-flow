@@ -1,8 +1,9 @@
-import type { CoachModelId, ModelCall, ModelOutput } from '@ff/engines';
+import type { CoachModelId, ModelCall, ModelOutput, SafetyScreen } from '@ff/engines';
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
 import { callFunction, supabase } from './backend';
 import { setRemoteModel } from './coach';
+import { SAFETY_SCREEN_ON } from './flags';
 import { requestPush, restore } from './sync';
 
 /** The coach's model call goes through our server only; the phone still validates every reply. */
@@ -19,6 +20,16 @@ const remoteCoach =
     if (error || !data) throw new Error(error?.code ?? 'NO_REPLY');
     return data.output;
   };
+
+/**
+ * The AI safety screen: sends only the message text. The phone checks the answer strictly and treats
+ * any error as "not cleared", so a failed call shows the fixed safe reply, never an unscreened answer.
+ */
+const remoteScreen: SafetyScreen = async (message) => {
+  const { data, error } = await callFunction<{ category: unknown }>('safety-screen', { message });
+  if (error || !data) throw new Error(error?.code ?? 'NO_REPLY');
+  return { category: data.category };
+};
 
 export const OTHER_ACCOUNT = 'This phone’s data belongs to a different backup account. Sign out, or delete this phone’s data in Settings first.';
 
@@ -45,7 +56,8 @@ export function BackendSync() {
 
   const aiOn = !!state.account && !!state.consents?.aiProcessing;
   useEffect(() => {
-    setRemoteModel(aiOn ? remoteCoach(state.coachModel) : undefined);
+    // With the deploy flag off the screen is switched off (null), not missing: the coach runs as before.
+    setRemoteModel(aiOn ? remoteCoach(state.coachModel) : undefined, aiOn && SAFETY_SCREEN_ON ? remoteScreen : null);
   }, [aiOn, state.coachModel]);
 
   // Link this phone to the signed-in account: restore first, push after.

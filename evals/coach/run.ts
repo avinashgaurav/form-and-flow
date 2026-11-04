@@ -1,7 +1,9 @@
 /**
  * Held-out coach eval. Per case and per run:
  *   1. The code-side safety path (coachTurn with a model stub that only counts calls) decides
- *      whether the message is routed to a fixed response. No model is involved.
+ *      whether the message is routed to a fixed response: the safety word list first, then the AI
+ *      safety screen (the app's exact screenRequest, sent through the CLI) for anything the list
+ *      did not catch. The coach model is not involved in this step.
  *   2. Ordinary and temptation cases that are not routed go to the model through the Claude Code
  *      CLI, using the app's exact coachRequest (system prompt, JSON schema, effort).
  *   3. The reply goes through the app's validateModelOutput and the eval's own number check.
@@ -12,8 +14,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { coachTurn, DEFAULT_COACH_MODEL, toModelOutput, validateModelOutput, classifyText } from '../../packages/engines/src/index.ts';
-import { coachRequest } from '../../supabase/functions/_shared/requests.ts';
+import { coachTurn, DEFAULT_COACH_MODEL, SCREEN_MODEL, toModelOutput, validateModelOutput, classifyText } from '../../packages/engines/src/index.ts';
+import { coachRequest, screenRequest } from '../../supabase/functions/_shared/requests.ts';
 import { callCli } from './cli.ts';
 import { wrongNumbers } from './check.ts';
 import { contextFor } from './profiles.ts';
@@ -44,17 +46,27 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
   return out;
 }
 
-async function evalCase(c: Case, model: string) {
+async function evalCase(c: Case, model: string, screenModel: string) {
   const { ctx, facts } = contextFor(c.profile);
 
   // 1. Code path only. The stub throws so a reply can never come from it; we only count calls.
+  // The safety screen is real: the app's request, through the CLI. The CLI starts a new process per
+  // call, so its time is not the app's; the deadline here is generous and the time is recorded.
   let modelCalls = 0;
+  let screen: Record<string, unknown> | null = null;
   const routed = await coachTurn(c.message, ctx, {
     aiAllowed: true,
     model: async () => {
       modelCalls++;
       throw new Error('stub');
     },
+    screen: async (message) => {
+      const r = await callCli(screenRequest({ message, model: screenModel }), screenModel);
+      screen = { ok: r.ok, answer: r.structured, error: r.error, models: r.models, ms: r.ms, usage: r.usage, cost_usd: r.costUsd };
+      if (!r.ok) throw new Error(r.error ?? 'screen failed');
+      return r.structured;
+    },
+    screenTimeoutMs: 180_000,
   });
   const lexicon = classifyText(c.message);
   const route = routed.safety;
@@ -66,6 +78,9 @@ async function evalCase(c: Case, model: string) {
     route,
     lexicon: { kind: lexicon.kind, confidence: lexicon.confidence, matched: lexicon.matched },
     fixed_reply: route === 'routine' ? null : routed.text,
+    // The AI safety screen's call, or null when the word list caught the message first.
+    screen,
+    problems: routed.problems,
     // Would the app itself have asked the model? False when a safety template or a rules answer
     // with an action (shorten, swap, show evidence) short-circuits first.
     app_would_call_model: modelCalls > 0,
@@ -98,14 +113,15 @@ async function main() {
   const first = Number(flag('first') ?? 1);
   const conc = Number(flag('concurrency') ?? 4);
   const model = flag('model') ?? DEFAULT_COACH_MODEL;
+  const screenModel = flag('screen-model') ?? SCREEN_MODEL;
   const out = flag('out') ?? 'results';
   const cases = loadCases(flag('cases') ?? 'cases.jsonl');
   mkdirSync(join(HERE, out), { recursive: true });
   for (let n = first; n < first + runs; n++) {
     const t0 = Date.now();
-    const recs = await pool(cases, conc, (c) => evalCase(c, model));
+    const recs = await pool(cases, conc, (c) => evalCase(c, model, screenModel));
     const file = join(HERE, out, `run-${n}.jsonl`);
-    writeFileSync(file, recs.map((r) => JSON.stringify({ run: n, model_requested: model, ...r })).join('\n') + '\n');
+    writeFileSync(file, recs.map((r) => JSON.stringify({ run: n, model_requested: model, screen_model_requested: screenModel, ...r })).join('\n') + '\n');
     const failed = recs.filter((r) => r.cli && !(r.cli as { ok: boolean }).ok).length;
     console.log(`run ${n}: ${recs.length} cases in ${Math.round((Date.now() - t0) / 1000)} s, ${failed} CLI failures -> ${out}/run-${n}.jsonl`);
   }

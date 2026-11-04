@@ -31,7 +31,9 @@ export default function Coach() {
     const withUser = [...messages, userMsg];
     save(withUser);
     try {
-      const r = await ask(state, trimmed);
+      // The coach's last message, so a yes to a "just to check" safety question is understood.
+      const previous = [...messages].reverse().find((m) => m.role === 'coach')?.text;
+      const r = await ask(state, trimmed, previous);
       if (r.safety === 'red_flag' || r.safety === 'crisis') {
         dispatch({ type: 'safety', event: { id: newId(), type: r.safety === 'crisis' ? 'crisis' : 'red_flag_symptom', at: new Date().toISOString(), detail: 'coach message' } });
       }

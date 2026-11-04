@@ -1,11 +1,13 @@
 import { DEFAULT_COACH_MODEL, DEFAULT_REMINDERS, type AllergenTag, type CoachModelId, type WeightEntry, type Diet, type FoodRef, type FoodUnit, type LogSnapshot, type OilLevel, type Sex, type Answer, type Block, type Goal, type PlannedSession, type QuestionId, type ReadinessResult, type Region, type ReminderPrefs, type Restriction, type TrainingProfile, type WeekPlan } from '@ff/engines';
+import { SAFETY_SCREEN_ON } from '../lib/flags';
 
-/** Bumped when the notice changes; .2 added meal photos to the AI section. */
-export const NOTICE_VERSION = 'notice-draft-2026-10-19.2';
+/** Bumped when the notice changes; .2 added meal photos to the AI section, .3 the AI safety check. */
+export const NOTICE_VERSION = SAFETY_SCREEN_ON ? 'notice-draft-2026-11-04.3' : 'notice-draft-2026-10-19.2';
 
-/** The AI paragraph of the notice, shown in Settings and before the first photo. */
-export const AI_NOTICE =
-  'If you allow it, two things go to Anthropic, our AI provider, which may process them outside India: a short summary of your plan to word coach replies (never your name or email), and meal photos you choose to send so it can name the foods. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.';
+/** The AI paragraph of the notice, shown in Settings and before the first photo. It names the safety check only in builds that have it. */
+export const AI_NOTICE = SAFETY_SCREEN_ON
+  ? 'If you allow it, these go to Anthropic, our AI provider, which may process them outside India: every coach message that the app\'s own safety word list does not already catch, first to an automatic safety check and then, with a short summary of your plan, to word the coach\'s reply (never your name or email); and meal photos you choose to send so it can name the foods. Messages the word list catches never go to the AI. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.'
+  : 'If you allow it, two things go to Anthropic, our AI provider, which may process them outside India: a short summary of your plan to word coach replies (never your name or email), and meal photos you choose to send so it can name the foods. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.';
 
 export interface Profile {
   birthYear: number;

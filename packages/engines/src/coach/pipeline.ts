@@ -1,14 +1,21 @@
 import { shortenSession, substitutes } from '../adjust';
 import { getExercise } from '../exercises';
-import { classifyText, CRISIS_OPENER, EMERGENCY } from '../safety';
+import { classifyText, CRISIS_OPENER, EMERGENCY, normaliseSafetyText } from '../safety';
 import type { Equipment, Experience, PlannedSession, Restriction } from '../types';
 import { findCards, getCard, type EvidenceCard } from './cards';
 import { COACH_MESSAGE_MAX, renderCoachPrompt, type CoachTone } from './prompt';
+import { parseScreenOutput, SCREEN_TIMEOUT_MS, type ScreenCategory } from './screen-prompt';
 
 /**
  * Coach turn pipeline (plan/13 section 1). Engines decide; the model may only phrase and propose.
  *
- *   message -> safety lexicon -> (template | rules | model) -> validators -> reply
+ *   message -> safety word list -> AI safety screen -> (template | rules | model) -> validators -> reply
+ *
+ * The word list runs on every message; a match gets a fixed reply and the message reaches no AI. With
+ * AI consent, every other message first goes to the AI safety screen (screen-prompt.ts), before any
+ * rules answer or coach reply. The screen can only move a message towards a fixed safe reply: its
+ * answer must be exactly "none" for the turn to continue, and an error, timeout or malformed answer
+ * gets the fixed safe reply too (fail closed).
  *
  * The one rule: every number in the reply must appear in the facts the context supplied
  * (number provenance). The model never sees or changes another user's data and has no tools.
@@ -86,6 +93,9 @@ export type ModelCall = (req: {
   /** True on the one retry after a rejected answer. Only a fixed line is added, never the problem text. */
   retry: boolean;
 }) => Promise<ModelOutput>;
+
+/** Asks the AI safety screen about one message. Returns its raw answer; code checks it strictly. */
+export type SafetyScreen = (message: string) => Promise<unknown>;
 
 /* ---------- Facts ---------- */
 
@@ -338,30 +348,112 @@ export function systemPrompt(ctx: CoachContext, facts: Record<string, number | s
   return renderCoachPrompt(ctx.tone, facts, retry);
 }
 
-export async function coachTurn(message: string, ctx: CoachContext, opts: { aiAllowed: boolean; model?: ModelCall }): Promise<CoachReply> {
+const CRISIS_REPLY = (): CoachReply =>
+  reply(`${CRISIS_OPENER} Please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}. If you are in danger, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'crisis');
+const RED_FLAG_REPLY = (): CoachReply =>
+  reply(`Stop exercising now. If this is happening now, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'red_flag' }, label: 'Emergency guidance' }], 'template', [], 'red_flag');
+const ED_REPLY = (): CoachReply =>
+  reply('I will not set a very low calorie target, because it can harm your health. If food feels hard right now, you can turn off calorie numbers in Settings, and Tele-MANAS (14416) is free to talk to.', [], 'template', [], 'ed_signal');
+/**
+ * When the safety screen could not give a clean answer (offline, timeout, limits, server error, a
+ * malformed answer). Still fail closed: no rules answer and no coach reply. But nothing suggests the
+ * message was worrying, so this is calmer than the crisis reply: it gives the helplines without the
+ * "Get help now" crisis action and asks the user to try again.
+ */
+export const SCREEN_UNSURE_TEXT = `I could not run my safety check right now, so I will not answer this one yet. If you need help, Tele-MANAS is free and open 24 hours on ${EMERGENCY.mentalHealth.numbers[0]}, and in an emergency call ${EMERGENCY.number}. Please try your message again in a moment.`;
+const SCREEN_UNSURE_REPLY = (): CoachReply => reply(SCREEN_UNSURE_TEXT, [], 'template', [], 'needs_confirm');
+
+/** The two "just to check" questions. A yes to either is taken as the confirmed case (see coachTurn). */
+export const CRISIS_CONFIRM_TEXT = `Just to check: do you mean an injury from training, or thoughts of harming yourself? If it is the second, please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}.`;
+export const RED_FLAG_CONFIRM_TEXT = 'Just to check: are you having chest pain, fainting, severe breathlessness or one-sided weakness right now?';
+
+/** Short answers that mean yes, or "the second one" to the crisis question. English and Hinglish. */
+const YES = /^(yes|yeah|yea|yep|yup|ya|yah|haan|han|haa|hn|ji haan|haan ji|maybe|both|shayad|kind of|sort of)\b/;
+const SECOND = /\b(second|2nd|the 2|doosra|dusra|dusri|doosri|thoughts?|harming|harm myself|hurt myself|khayal|khyal|vichar|soch)\b/;
+
+/**
+ * A reply to one of the "just to check" questions. A yes (or "the second one") gets the confirmed fixed
+ * reply straight away, without the AI screen. Anything else goes through the normal checks.
+ */
+function confirmFollowUp(message: string, previousCoachText: string | undefined): CoachReply | null {
+  if (!previousCoachText) return null;
+  const t = normaliseSafetyText(message);
+  if (previousCoachText === CRISIS_CONFIRM_TEXT && (YES.test(t) || SECOND.test(t))) return { ...CRISIS_REPLY(), problems: ['follow-up: yes to the crisis question'] };
+  if (previousCoachText === RED_FLAG_CONFIRM_TEXT && YES.test(t)) return { ...RED_FLAG_REPLY(), problems: ['follow-up: yes to the red-flag question'] };
+  return null;
+}
+
+/** Runs the screen with a deadline. Anything but a clean, schema-valid answer is 'unsure'. */
+export async function runSafetyScreen(screen: SafetyScreen, message: string, timeoutMs = SCREEN_TIMEOUT_MS): Promise<{ category: ScreenCategory | 'unsure'; problem?: string }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, bad) => {
+    timer = setTimeout(() => bad(new Error('timeout')), timeoutMs);
+  });
+  try {
+    const raw = await Promise.race([screen(message.slice(0, COACH_MESSAGE_MAX)), deadline]);
+    const category = parseScreenOutput(raw);
+    return category ? { category } : { category: 'unsure', problem: 'safety screen: invalid answer' };
+  } catch (e) {
+    return { category: 'unsure', problem: `safety screen error: ${(e as Error)?.message ?? 'unknown'}` };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function coachTurn(
+  message: string,
+  ctx: CoachContext,
+  opts: {
+    aiAllowed: boolean;
+    model?: ModelCall;
+    /**
+     * The AI safety screen. `null` means the screen is switched off for this build (the deploy flag), so
+     * the turn runs as before: word list, rules, coach. Left out while a model is given, the turn fails
+     * closed, so a forgotten screen can never mean an unscreened coach reply.
+     */
+    screen?: SafetyScreen | null;
+    screenTimeoutMs?: number;
+    /** The coach's previous message text, so a yes to a "just to check" question is understood. */
+    previousCoachText?: string;
+  },
+): Promise<CoachReply> {
   const safety = classifyText(message);
   if (safety.kind === 'crisis') {
     if (safety.confidence === 'needs_confirm') {
-      return reply(`Just to check: do you mean an injury from training, or thoughts of harming yourself? If it is the second, please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'needs_confirm');
+      return reply(CRISIS_CONFIRM_TEXT, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'needs_confirm');
     }
-    return reply(`${CRISIS_OPENER} Please talk to someone now. Tele-MANAS is free and open 24 hours: ${EMERGENCY.mentalHealth.numbers[0]}. If you are in danger, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'crisis' }, label: 'Get help now' }], 'template', [], 'crisis');
+    return CRISIS_REPLY();
   }
   if (safety.kind === 'red_flag') {
-    if (safety.confidence === 'needs_confirm') return reply('Just to check: are you having chest pain, fainting, severe breathlessness or one-sided weakness right now?', [], 'template', [], 'needs_confirm');
-    return reply(`Stop exercising now. If this is happening now, call ${EMERGENCY.number}.`, [{ type: 'escalate_safety', payload: { kind: 'red_flag' }, label: 'Emergency guidance' }], 'template', [], 'red_flag');
+    if (safety.confidence === 'needs_confirm') return reply(RED_FLAG_CONFIRM_TEXT, [], 'template', [], 'needs_confirm');
+    return RED_FLAG_REPLY();
   }
-  if (safety.kind === 'ed_signal') {
-    return reply('I will not set a very low calorie target, because it can harm your health. If food feels hard right now, you can turn off calorie numbers in Settings, and Tele-MANAS (14416) is free to talk to.', [], 'template', [], 'ed_signal');
-  }
+  if (safety.kind === 'ed_signal') return ED_REPLY();
   if (safety.kind === 'out_of_scope') {
     const card = getCard('ev-supplements')!;
     return reply('That needs a doctor or registered dietitian, so I will not advise on it. I can help with your training and everyday food.', [{ type: 'show_evidence', payload: { card_id: card.id }, label: `Read: ${card.title}` }], 'template', [card], 'out_of_scope');
   }
 
+  // Second layer, only with AI consent, and before any rules answer or coach reply. With a model but
+  // no screen wired up, fail closed rather than answer unscreened. Without a model (no consent, or
+  // consent but signed out) no AI is reachable at all: only the word list runs, then the rules, as
+  // before this layer existed. The phone enforces this order; the coach function does not re-check it.
+  const followUp = confirmFollowUp(message, opts.previousCoachText);
+  if (followUp) return followUp;
+
+  const ai = opts.aiAllowed && !!opts.model;
+  if (ai && opts.screen !== null) {
+    const screened = opts.screen ? await runSafetyScreen(opts.screen, message, opts.screenTimeoutMs) : { category: 'unsure' as const, problem: 'safety screen: not configured' };
+    if (screened.category !== 'none') {
+      const fixed = screened.category === 'crisis' ? CRISIS_REPLY() : screened.category === 'emergency' ? RED_FLAG_REPLY() : screened.category === 'eating_disorder' ? ED_REPLY() : SCREEN_UNSURE_REPLY();
+      return { ...fixed, problems: [screened.problem ?? `safety screen: ${screened.category}`] };
+    }
+  }
+
   const rules = ruleReply(message, ctx);
   // Deterministic flows that propose an action (shorten, swap) never depend on the model.
   if (rules && rules.actions.length) return rules;
-  if (!opts.aiAllowed || !opts.model) return rules ?? reply(FALLBACK, [], 'fallback');
+  if (!ai || !opts.model) return rules ?? reply(FALLBACK, [], 'fallback');
 
   const facts = buildFacts(ctx);
   const user = message.slice(0, COACH_MESSAGE_MAX);

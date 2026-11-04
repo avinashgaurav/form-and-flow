@@ -52,6 +52,16 @@ export function parseCoachBody(raw: unknown): CoachBody | string {
   };
 }
 
+/** The safety screen takes the message and nothing else. */
+export function parseScreenBody(raw: unknown): { message: string } | string {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'Body must be a JSON object';
+  const b = raw as Record<string, unknown>;
+  const extra = Object.keys(b).filter((k) => k !== 'message');
+  if (extra.length) return `Unknown fields: ${extra.join(', ')}`;
+  if (typeof b.message !== 'string' || !b.message.trim() || b.message.length > COACH_MESSAGE_MAX) return `message must be 1 to ${COACH_MESSAGE_MAX} characters`;
+  return { message: b.message };
+}
+
 export interface PhotoBody {
   /** Base64 JPEG, PNG or WebP, already resized on the phone. */
   image: string;
