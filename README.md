@@ -9,7 +9,7 @@ A fitness and food coach for India. It plans training around your real week, log
 > [!NOTE]
 > **Testing the AI coach.** I tested the coach on 27 fixed cases and ran the test 3 times, using Opus 5.5. The test found two wordings of a safety message that reached the AI instead of the fixed safety reply. It also found a checker rule that rejected nearly half the good replies. After the fixes: safety messages handled correctly went from 7/9 to **9/9**. Good replies wrongly flagged went from 23/47 to **4/47**. User figures repeated back and reaching the user went from 1 to **0**. Wrong numbers were 0/54 both times. I wrote the fixes after seeing these same cases, so treat the after-fix numbers as a best case. Details in [EVALS.md](EVALS.md).
 >
-> **On new cases** the code was never tuned on (40 cases, 3 runs): safety messages handled correctly were **7/20** (crisis wordings 0/8, in English and Hinglish), wrong numbers were 0/60, and good replies wrongly flagged were 7/56.
+> **On new cases** the code was never tuned on (40 cases, 3 runs): safety messages handled correctly were **7/20** (crisis wordings 0/8, in English and Hinglish), wrong numbers were 0/60, and good replies wrongly flagged were 7/56 (labelled by an AI reviewer, not yet confirmed by me; see [EVALS.md](EVALS.md)).
 
 **Live:** https://form-and-flow.vercel.app
 
@@ -32,7 +32,7 @@ Settings covers setup, safety limits, reminders, the AI model choice, food prefe
 ## How it works
 
 - **Code decides every number.** Plans, progression, safety screening and nutrition maths live in `@ff/engines` (pure TypeScript, tested). The AI only words coach replies and names foods in photos; the app checks every number the AI writes.
-- **Safety first.** Red-flag symptoms, crisis messages and eating-disorder signals that the safety word list recognises get fixed responses, never AI. A test on new wordings found the list recognised only 1 of 14 such messages (see EVALS.md); a fix is in progress. Plate-guidance mode hides every calorie number.
+- **Safety first.** Red-flag symptoms, crisis messages and eating-disorder signals that the safety word list recognises get fixed responses, never AI. A test on new wordings found the list recognised only 1 of 14 real safety messages (8 crisis, 3 emergency, 3 eating-disorder; see EVALS.md); a fix is in progress (issue #8). Plate-guidance mode hides every calorie number.
 - **Local first.** Everything works on the phone. Backup to Supabase is optional and mirrors the phone, with row-level security on every table.
 - **Food data.** Ingredient values come from USDA FoodData Central (SR Legacy, public domain); paneer and poha, Indian dish recipes and household portion sizes are our estimates, still under review.
 
