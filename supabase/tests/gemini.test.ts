@@ -4,14 +4,15 @@ import { test } from 'node:test';
 import { COACH_MODELS, COACH_OUTPUT_SCHEMA } from '../functions/_shared/coach-prompt.ts';
 import { callGemini, GEMINI_MODELS, GEMINI_SCREEN_MODEL, geminiCoachRequest, geminiPhotoRequest, geminiScreenRequest, parseGeminiResponse, toGeminiSchema } from '../functions/_shared/gemini.ts';
 import { PHOTO_SYSTEM } from '../functions/_shared/photo-prompt.ts';
-import { parseProvider, providerModel, providerScreenModel, screenDecision, type ModelResult } from '../functions/_shared/provider.ts';
+import { GEMINI_NOTICE_VERSIONS, noticeNamesProvider, parseProvider, providerModel, providerScreenModel, screenDecision, type ModelResult } from '../functions/_shared/provider.ts';
 import { SCREEN_MODEL, SCREEN_SYSTEM } from '../functions/_shared/screen-prompt.ts';
 
 /* ---------- Provider switch ---------- */
 
-test('AI_PROVIDER defaults to gemini, accepts anthropic, and refuses anything else', () => {
-  assert.equal(parseProvider(undefined), 'gemini');
-  assert.equal(parseProvider(''), 'gemini');
+test('AI_PROVIDER must be set to gemini or anthropic; unset or anything else calls no AI', () => {
+  assert.equal(parseProvider(undefined), null);
+  assert.equal(parseProvider(''), null);
+  assert.equal(parseProvider('gemini'), 'gemini');
   assert.equal(parseProvider(' Gemini '), 'gemini');
   assert.equal(parseProvider('anthropic'), 'anthropic');
   assert.equal(parseProvider('antrhopic'), null);
@@ -26,6 +27,22 @@ test('every model choice in Settings maps to a Gemini model; Anthropic keeps the
   assert.equal(GEMINI_MODELS['claude-haiku-5-5'], GEMINI_SCREEN_MODEL);
   assert.equal(providerScreenModel('gemini'), GEMINI_SCREEN_MODEL);
   assert.equal(providerScreenModel('anthropic'), SCREEN_MODEL);
+});
+
+test('a consent counts only under a notice that named the provider', () => {
+  for (const v of GEMINI_NOTICE_VERSIONS) {
+    assert.equal(noticeNamesProvider(v, 'gemini'), true);
+    assert.equal(noticeNamesProvider(v, 'anthropic'), false);
+  }
+  for (const v of ['notice-draft-2026-11-04.3', 'notice-draft-2026-10-19.2', null, undefined]) {
+    assert.equal(noticeNamesProvider(v, 'gemini'), false);
+    assert.equal(noticeNamesProvider(v, 'anthropic'), true);
+  }
+});
+
+test('the server and the app use the same list of Gemini notice versions', async () => {
+  const app = await import('../../app/src/store/types.ts');
+  assert.deepEqual([...app.GEMINI_NOTICE_VERSIONS], [...GEMINI_NOTICE_VERSIONS]);
 });
 
 /* ---------- Request builders ---------- */

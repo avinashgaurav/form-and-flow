@@ -1,5 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { fail } from './http.ts';
+import { noticeNamesProvider, type Provider } from './provider.ts';
 import { hashUserId } from './validate.ts';
 
 /**
@@ -31,15 +32,18 @@ export async function startRun(
   purpose: RunPurpose,
   model: string,
   promptVersion: string,
-  /** Recorded in model_runs.provider; the column defaults to 'anthropic' when it is left out. */
-  provider?: string,
+  /** Recorded in model_runs.provider; left out means Anthropic (the column default). */
+  provider?: Provider,
 ): Promise<Run | Response> {
   const { user, userClient, admin, traceId } = ctx;
 
   // The database stamps consent time itself, so a phone cannot back-date or future-date a grant.
-  const consent = await userClient.from('consent_records').select('granted').eq('purpose', 'ai_processing').order('at', { ascending: false }).limit(1).maybeSingle();
+  const consent = await userClient.from('consent_records').select('granted, notice_version').eq('purpose', 'ai_processing').order('at', { ascending: false }).limit(1).maybeSingle();
   if (consent.error) return fail('INTERNAL_ERROR', 'Could not check consent', 500, traceId);
   if (!consent.data?.granted) return fail('FORBIDDEN', 'AI processing is off for this account', 403, traceId);
+  // The consent counts only under a notice that named this provider (the phone checks this too; this is the backstop).
+  if (!noticeNamesProvider(consent.data.notice_version as string | null | undefined, provider ?? 'anthropic'))
+    return fail('FORBIDDEN', 'AI processing was agreed under a notice for a different AI provider', 403, traceId);
 
   // Reserve first, then count including the reservation: parallel requests see each other.
   const reserved = await admin

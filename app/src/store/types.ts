@@ -5,7 +5,7 @@ import { AI_PROVIDER, SAFETY_SCREEN_ON } from '../lib/flags';
  * Notices that name Google (Gemini) as the AI provider. Bumped when the notice changes; .2 added meal
  * photos to the AI section, .3 the AI safety check, .4 the switch from Anthropic to Google.
  */
-export const GEMINI_NOTICE_VERSIONS = ['notice-draft-2026-11-04.4', 'notice-draft-2026-11-04.4-noscreen'] as const;
+export const GEMINI_NOTICE_VERSIONS = ['notice-draft-2026-11-04.4', 'notice-draft-2026-11-04.4-noscreen'] as const; // same list as supabase/functions/_shared/provider.ts
 
 export function noticeVersion(provider: 'gemini' | 'anthropic', screenOn: boolean): string {
   if (provider === 'gemini') return screenOn ? GEMINI_NOTICE_VERSIONS[0] : GEMINI_NOTICE_VERSIONS[1];

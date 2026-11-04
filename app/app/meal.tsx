@@ -20,7 +20,7 @@ import { backendConfigured } from '../src/lib/backend';
 import { photoToDrafts } from '../src/lib/photo';
 import { todayKey } from '../src/lib/plan';
 import { newId, useStore } from '../src/store/store';
-import { AI_NOTICE, NOTICE_VERSION } from '../src/store/types';
+import { AI_NOTICE, aiConsentCurrent, NOTICE_VERSION } from '../src/store/types';
 import type { MealItem, MealLog, MealType, SavedMeal } from '../src/store/types';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Chip, ChipGroup, Eyebrow, Field, Row, Screen, Stepper, T } from '../src/ui';
@@ -77,7 +77,7 @@ export default function MealBuilder() {
     ? 'Photo logging needs the AI server, which is not set up in this build yet. Type or search instead.'
     : !state.account
       ? 'Turn on backup in Settings to use photo logging.'
-      : !state.consents?.aiProcessing
+      : !aiConsentCurrent(state.consents)
         ? 'Allow AI processing in Settings to use photo logging.'
         : null;
 
@@ -92,7 +92,7 @@ export default function MealBuilder() {
   }
 
   async function fromPhoto(source: 'camera' | 'library', agreed = false) {
-    if (!agreed && state.consents?.version !== NOTICE_VERSION) return setAskPhotoConsent(source);
+    if (!agreed && (!aiConsentCurrent(state.consents) || state.consents?.version !== NOTICE_VERSION)) return setAskPhotoConsent(source);
     setPhotoBusy(true);
     setPhotoNote(null);
     try {

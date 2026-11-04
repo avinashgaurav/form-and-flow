@@ -12,7 +12,7 @@ import { parseCoachBody } from '../_shared/validate.ts';
  *
  * The phone runs the safety lexicon, the rules and the validators; this function only phrases.
  * It builds the system prompt itself from its own copy of the prompt and accepts only facts from
- * a fixed list, so it is not a general model proxy. The provider (Google Gemini by default, or
+ * a fixed list, so it is not a general model proxy. The provider (Google Gemini or
  * Anthropic) comes from AI_PROVIDER (shared/ai.ts). Consent, an hourly call limit and a daily
  * token cap are checked before every call (shared/run.ts). Any failure returns an error and the phone answers
  * from its rules instead.
@@ -74,5 +74,5 @@ Deno.serve(async (req) => {
     return fail('DEPENDENCY_UNAVAILABLE', 'The AI reply could not be used', 502, traceId);
   }
   await done({ ...usage, schema_valid: true, stop_reason: 'end_turn' });
-  return json({ output, model: response.model, prompt_version: COACH_PROMPT_VERSION, trace_id: traceId });
+  return json({ output, model: response.model, provider: setup.provider, prompt_version: COACH_PROMPT_VERSION, trace_id: traceId });
 });

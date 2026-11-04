@@ -2,6 +2,7 @@ import type { CoachModelId, ModelCall, ModelOutput, SafetyScreen } from '@ff/eng
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
 import { aiConsentCurrent } from '../store/types';
+import { providerMatches } from './aiProvider';
 import { callFunction, supabase } from './backend';
 import { setRemoteModel } from './coach';
 import { SAFETY_SCREEN_ON } from './flags';
@@ -11,7 +12,7 @@ import { requestPush, restore } from './sync';
 const remoteCoach =
   (model: CoachModelId): ModelCall =>
   async (req) => {
-    const { data, error } = await callFunction<{ output: ModelOutput }>('coach', {
+    const { data, error } = await callFunction<{ output: ModelOutput; provider?: string }>('coach', {
       message: req.user,
       tone: req.tone,
       facts: req.facts,
@@ -19,6 +20,7 @@ const remoteCoach =
       model,
     });
     if (error || !data) throw new Error(error?.code ?? 'NO_REPLY');
+    if (!providerMatches(data)) throw new Error('PROVIDER_MISMATCH');
     return data.output;
   };
 
@@ -27,8 +29,9 @@ const remoteCoach =
  * any error as "not cleared", so a failed call shows the fixed safe reply, never an unscreened answer.
  */
 const remoteScreen: SafetyScreen = async (message) => {
-  const { data, error } = await callFunction<{ category: unknown }>('safety-screen', { message });
+  const { data, error } = await callFunction<{ category: unknown; provider?: string }>('safety-screen', { message });
   if (error || !data) throw new Error(error?.code ?? 'NO_REPLY');
+  if (!providerMatches(data)) throw new Error('PROVIDER_MISMATCH');
   return { category: data.category };
 };
 

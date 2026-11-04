@@ -114,10 +114,31 @@ test('with consent and room under the limits, a run is reserved before the call'
   );
 });
 
+test('on Gemini, a consent given under an Anthropic notice is refused before any run is reserved', async () => {
+  const { db, ctx } = setup(null);
+  db.tables.consent_records!.push({ purpose: 'ai_processing', granted: true, notice_version: 'notice-draft-2026-11-04.3', at: ago(60_000) });
+  assert.equal(await code(await startRun(ctx, 'safety_screen', 'gemini-3.5-flash-lite', 'screen-v', 'gemini')), 'FORBIDDEN');
+  assert.equal(await code(await startRun(ctx, 'coach_turn', 'gemini-3.6-flash', 'coach-v', 'gemini')), 'FORBIDDEN');
+  assert.equal(db.tables.model_runs!.length, 0);
+  // The same consent still works on the Anthropic path.
+  assert.ok(!((await startRun(ctx, 'coach_turn', 'claude-opus-5-5', 'coach-v', 'anthropic')) instanceof Response));
+});
+
+test('on Anthropic, a consent given under a Gemini notice is refused; under a Gemini notice Gemini is allowed', async () => {
+  const { db, ctx } = setup(null);
+  db.tables.consent_records!.push({ purpose: 'ai_processing', granted: true, notice_version: 'notice-draft-2026-11-04.4', at: ago(60_000) });
+  assert.equal(await code(await startRun(ctx, 'coach_turn', 'claude-opus-5-5', 'coach-v', 'anthropic')), 'FORBIDDEN');
+  assert.equal(await code(await startRun(ctx, 'coach_turn', 'claude-opus-5-5', 'coach-v')), 'FORBIDDEN');
+  assert.ok(!((await startRun(ctx, 'safety_screen', 'gemini-3.5-flash-lite', 'screen-v', 'gemini')) instanceof Response));
+});
+
 test('the run records which AI provider served it; without one the column default applies', async () => {
   const { db, ctx } = setup();
   const run = await startRun(ctx, 'safety_screen', 'gemini-3.5-flash-lite', 'screen-v', 'gemini');
-  assert.ok(!(run instanceof Response));
+  assert.equal(await code(run as Response), 'FORBIDDEN');
+  db.tables.consent_records!.push({ purpose: 'ai_processing', granted: true, notice_version: 'notice-draft-2026-11-04.4', at: ago(30_000) });
+  assert.ok(!((await startRun(ctx, 'safety_screen', 'gemini-3.5-flash-lite', 'screen-v', 'gemini')) instanceof Response));
+  db.tables.consent_records!.push({ purpose: 'ai_processing', granted: true, notice_version: 'notice-draft-2026-11-04.3', at: ago(10_000) });
   const old = await startRun(ctx, 'coach_turn', 'claude-opus-5-5', 'coach-v');
   assert.ok(!(old instanceof Response));
   assert.deepEqual(

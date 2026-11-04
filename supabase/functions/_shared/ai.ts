@@ -5,7 +5,7 @@ import { parseProvider, type ModelResult, type Provider } from './provider.ts';
 import type { coachRequest } from './requests.ts';
 
 /**
- * The one place the functions choose and call the AI provider (AI_PROVIDER, default gemini). Each
+ * The one place the functions choose and call the AI provider (AI_PROVIDER, which must be set: gemini or anthropic). Each
  * function builds both requests from the same prompt, schema and limits and reads the answer in one
  * shape (provider.ts), so consent, limits, validators, fail-closed rules and model_runs logging stay
  * the same whichever provider is set.

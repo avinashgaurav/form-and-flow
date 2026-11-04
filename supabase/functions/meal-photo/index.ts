@@ -14,7 +14,7 @@ import { PHOTO_MAX_BASE64, parsePhotoBody } from '../_shared/validate.ts';
  * The model returns only names, amounts and units; the phone matches them to its catalogue and
  * its engine computes every nutrient, and the user checks each item before anything is saved.
  * The photo is passed straight to the model and never stored or logged here. The provider (Google
- * Gemini by default, or Anthropic) comes from AI_PROVIDER.
+ * Gemini or Anthropic) comes from AI_PROVIDER.
  */
 
 const envModel = Deno.env.get('COACH_MODEL');
@@ -72,5 +72,5 @@ Deno.serve(async (req) => {
     return fail('DEPENDENCY_UNAVAILABLE', 'The AI reply could not be used', 502, traceId);
   }
   await run.done({ ...usage, schema_valid: true, stop_reason: 'end_turn' });
-  return json({ output, model: response.model, prompt_version: PHOTO_PROMPT_VERSION, trace_id: traceId });
+  return json({ output, model: response.model, provider: setup.provider, prompt_version: PHOTO_PROMPT_VERSION, trace_id: traceId });
 });

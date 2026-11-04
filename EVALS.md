@@ -297,6 +297,8 @@ Every run gave the same result, case for case. The 10 messages the screen caught
 
 ### 2. The new coach cases (40 cases)
 
+**Not like for like:** the Gemini coach here is the small `gemini-3.5-flash-lite`, the Claude coach was `claude-opus-5-5`, the largest. The safety rows compare like for like; the coach rows do not.
+
 Claude column: the same cases after the safety fix (`results-screen/`, coach `claude-opus-5-5`). Gemini column: `results-gemini/new/`, coach `gemini-3.5-flash-lite`.
 
 | What I measured | Claude | Gemini |
@@ -353,10 +355,11 @@ The key is on the free tier, so nothing was billed. At Google's published paid-t
 ### Limits
 
 - **The default coach model is untested.** The coach replies are from `gemini-3.5-flash-lite` ("Fast"), not `gemini-3.6-flash` ("Balanced" and "Most capable"), because of the free tier's 20 requests a day. Rerun with `--model claude-opus-5-5` once billing is on.
-- **Speed is the main new risk.** 74 of 316 screen calls (23%) took longer than 4 seconds, up to 10.4 seconds. The app fails closed on each, so it is not a safety miss, but an ordinary message would often get "I could not run my safety check" instead of an answer. This was on the free tier, on a busy day (`gemini-3.8-flash` answered "overloaded" to all 12 of my test calls), with my test calls spaced out; a paid project may be faster, and I have not measured that. Check it with `npm run ai:smoke` before turning the screen on, and consider a longer screen limit if it stays slow.
+- **Speed is the main new risk.** 74 of 316 screen calls (23%) took longer than 4 seconds, up to 10.4 seconds. I did not change the app's time limits, because I have not measured a paid key; supabase/SETUP.md makes this a release gate (p95 under the limit before the screen is turned on with Gemini) and lists the options. The app fails closed on each, so it is not a safety miss, but an ordinary message would often get "I could not run my safety check" instead of an answer. This was on the free tier, on a busy day (`gemini-3.8-flash` answered "overloaded" to all 12 of my test calls), with my test calls spaced out; a paid project may be faster, and I have not measured that. Check it with `npm run ai:smoke` before turning the screen on, and consider a longer screen limit if it stays slow.
 - The original 27 cases have 2 runs, not 3 (daily limit).
 - The checks measure numbers and safety routing, not how helpful a reply is. Several Gemini replies listed plan numbers without answering the question (for example "Which of today's moves are easiest on my shoulder?" got the session's sets, reps and rest), which no check here scores.
 - The labels needing judgement were read by an AI reviewer, not by me.
+- These runs used a free-tier key, where Google may use prompts to improve its products. Every case is made up; no real user's data may go through a free-tier key.
 - The same caveats as the fresh set above still apply: an AI wrote the safety set, much of it shares wording with what the fix was tuned on, and it is small.
 
 ```bash

@@ -6,18 +6,30 @@ import { parseScreenOutput, SCREEN_MODEL, type ScreenCategory } from './screen-p
  * Which AI company the server functions call, from the AI_PROVIDER secret. Plain TypeScript (no Deno
  * APIs) so Node tests can import it.
  *
- * gemini (the default when AI_PROVIDER is not set): Google Gemini, key in GEMINI_API_KEY.
+ * gemini: Google Gemini, key in GEMINI_API_KEY.
  * anthropic: Claude, key in ANTHROPIC_API_KEY, exactly as before.
- * Anything else is a setup mistake: the functions refuse to call any AI rather than guess, because the
- * privacy notice the user agreed to names one provider.
+ * It must be set explicitly. Unset or anything else is a setup mistake: the functions refuse to call
+ * any AI rather than guess, because the privacy notice the user agreed to names one provider.
  */
 export type Provider = 'gemini' | 'anthropic';
 
 export function parseProvider(value: string | undefined): Provider | null {
   const v = (value ?? '').trim().toLowerCase();
-  if (v === '' || v === 'gemini') return 'gemini';
+  if (v === 'gemini') return 'gemini';
   if (v === 'anthropic') return 'anthropic';
   return null;
+}
+
+/**
+ * Privacy notice versions that name Google (Gemini). The app keeps the same list in
+ * app/src/store/types.ts (a test checks they match). Every other version named Anthropic.
+ */
+export const GEMINI_NOTICE_VERSIONS = ['notice-draft-2026-11-04.4', 'notice-draft-2026-11-04.4-noscreen'] as const;
+
+/** Whether the notice the user agreed to named this provider. The server checks this before every call. */
+export function noticeNamesProvider(version: string | null | undefined, provider: Provider): boolean {
+  const gemini = (GEMINI_NOTICE_VERSIONS as readonly string[]).includes(version ?? '');
+  return provider === 'gemini' ? gemini : !gemini;
 }
 
 /** The provider's model for one of the app's three choices (the Anthropic ids are the choice ids). */

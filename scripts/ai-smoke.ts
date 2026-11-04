@@ -47,9 +47,10 @@ async function main(): Promise<number> {
   };
   const choice = flag('model') ?? DEFAULT_COACH_MODEL;
   const photoPath = flag('photo');
-  const provider = parseProvider(process.env.AI_PROVIDER);
+  // The server needs AI_PROVIDER set explicitly; this local check defaults to gemini for convenience.
+  const provider = parseProvider(process.env.AI_PROVIDER ?? 'gemini');
   if (!provider) {
-    console.error('AI_PROVIDER must be gemini (the default) or anthropic.');
+    console.error('AI_PROVIDER must be gemini (the default here) or anthropic.');
     return 2;
   }
   if (!isCoachModel(choice)) {

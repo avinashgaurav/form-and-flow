@@ -145,7 +145,7 @@ export function geminiPhotoRequest(p: { model: string; image: string; media_type
   };
 }
 
-/** Finish reasons that mean Google's filters stopped the answer: handled like a refusal. */
+/** Finish reasons that mean Google's filters stopped the answer (including LANGUAGE, an unsupported language): handled like a refusal. */
 const BLOCKED = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION', 'IMAGE_SAFETY', 'IMAGE_PROHIBITED_CONTENT', 'IMAGE_RECITATION', 'LANGUAGE']);
 
 /**

@@ -15,7 +15,7 @@ import { parseScreenBody } from '../_shared/validate.ts';
  * reply: the phone maps the category to a fixed safe reply, and any error from here (consent, limits,
  * timeout, refusal, a malformed answer) makes the phone show the fixed safe reply too. The message is
  * not stored; model_runs keeps only the purpose, model, token counts and outcome. The provider (Google
- * Gemini by default, or Anthropic) comes from AI_PROVIDER; a Gemini content-filter block is handled like
+ * Gemini or Anthropic) comes from AI_PROVIDER; a Gemini content-filter block is handled like
  * a refusal, so it also gets the fixed safe reply.
  */
 
@@ -56,5 +56,5 @@ Deno.serve(async (req) => {
   if (d.kind === 'declined') return fail('MODEL_DECLINED', 'The safety check declined this message', 422, traceId);
   if (d.kind === 'unusable') return fail('DEPENDENCY_UNAVAILABLE', 'The safety check answer could not be used', 502, traceId);
   const category = d.category;
-  return json({ category, prompt_version: SCREEN_PROMPT_VERSION, trace_id: traceId });
+  return json({ category, provider: setup.provider, prompt_version: SCREEN_PROMPT_VERSION, trace_id: traceId });
 });

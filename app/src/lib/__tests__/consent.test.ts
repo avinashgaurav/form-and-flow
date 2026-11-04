@@ -35,3 +35,11 @@ test('AI stays off until the user agrees to a notice naming the current provider
   assert.equal(aiConsentCurrent({ ...agreed, aiProcessing: false }, 'gemini'), false);
   assert.equal(aiConsentCurrent(undefined, 'gemini'), false);
 });
+
+test('the phone uses an AI reply only from the provider its notice names', async () => {
+  const { providerMatches } = await import('../aiProvider');
+  assert.equal(providerMatches({ provider: 'gemini' }, 'gemini'), true);
+  assert.equal(providerMatches({ provider: 'anthropic' }, 'gemini'), false);
+  assert.equal(providerMatches({}, 'gemini'), false);
+  assert.equal(providerMatches(null, 'anthropic'), false);
+});
