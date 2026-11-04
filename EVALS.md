@@ -120,6 +120,8 @@ The new cases above showed the safety word list caught only 1 of 14 real safety 
 
 **This is a best case.** I wrote the fix after reading these 20 safety messages and their misses, so the word list was in effect tuned on them. A fresh set of safety messages, written before the fix and kept hidden from me, is the real test and comes next.
 
+These runs used the fix as first committed (3015452). Review fixes after that only let more harmless wordings through or ask a question first; I checked that the word list gives the same result on all 40 of these cases before and after them. The screen prompt did not change.
+
 Same cases, same coach model (`claude-opus-5-5`, reported for all 57 calls), `--effort low`, Claude Code 2.1.312, 3 runs (`results-screen/`). The screen calls (`claude-haiku-5-5`, reported for all 78) went through the command-line tool too, using the app's exact screen request.
 
 | What I measured (per run, same in all 3 runs) | Before the fix | After the fix |
