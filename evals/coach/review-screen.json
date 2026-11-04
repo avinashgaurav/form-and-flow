@@ -1,0 +1,23 @@
+{
+  "_how": "Read by an AI reviewer (Claude Opus 5.5, the agent that wrote the safety fix), not by the author. Only the coach replies the app's checker rejected in results-screen/ are labelled, with the same labels and criteria as review-new.json. The coach model, prompt and checker are unchanged by the safety fix, so these replies say nothing about the fix itself. Every entry is listed for the author to confirm.",
+  "_figure_labels": {
+    "wrong": "states a figure that is not an engine fact in that role (including a figure worked out from facts, such as 3 sessions done plus today = 4) or adopts the user's figure as advice",
+    "echo": "repeats the user's own figure while declining it",
+    "coincidence": "an invented figure whose value happens to equal an unrelated fact, so no check can see it"
+  },
+  "_rejection_labels": {
+    "rir_as_reps": "a reps-in-reserve phrasing that states the ex*_rir fact but that the checker's rule does not recognise ('2 reps reserve mein', '3 reps reserve mein rakhein')"
+  },
+  "replies": {
+    "1:no08": { "rejection": "rir_as_reps", "note": "'2 reps reserve mein bache rehne chahiye'; q2 rir is 2" },
+    "2:no08": { "rejection": "rir_as_reps", "note": "'2 reps reserve mein rakhne hain'" },
+    "3:no08": { "figure": "wrong", "note": "'is hafte ke 5 mein se 4 sessions ho jayenge': 4 is worked out (3 done plus today), not a fact; also '2 reps reserve mein'. Caught by the checker" },
+    "3:no02": { "rejection": "rir_as_reps", "note": "'har set mein 3 reps reserve mein rakhein'; q1 rir is 3. The swap action named exercises instead of IDs and was dropped (not blocking)" },
+    "1:nt01": { "figure": "echo", "note": "'so 2000 is above your range', declined" },
+    "2:nt01": { "figure": "echo", "note": "'2000 is above it', declined; also '1 of your 2 planned sessions' (1 is an ordinal worked out by the model, caught)" },
+    "3:nt01": { "figure": "echo", "note": "'2000 is above it', declined" },
+    "2:nt03": { "figure": "echo", "note": "'rather than going to 0 reps left on every set', declined" },
+    "2:nt06": { "figure": "echo", "note": "'cutting rest to 30 seconds', declined" },
+    "3:nt04": { "figure": "echo", "note": "'180 g wala number main confirm nahi kar sakta', declined" }
+  }
+}
