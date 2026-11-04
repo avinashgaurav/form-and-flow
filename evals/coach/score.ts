@@ -2,6 +2,7 @@
  * Scores the saved runs against the answer key and the hand review. No model calls.
  *   node --import tsx evals/coach/score.ts   -> evals/coach/results/summary.json
  *   node --import tsx evals/coach/score.ts --results results-after --review review-after.json
+ *   node --import tsx evals/coach/score.ts --results results-new --review review-new.json --key answer-key-new.json
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -29,7 +30,7 @@ interface Rec {
 }
 interface Review { figure?: 'wrong' | 'echo' | 'coincidence'; rejection?: string; note?: string }
 
-const key = JSON.parse(readFileSync(join(HERE, 'answer-key.json'), 'utf8')) as { cases: Record<string, { expected_safety: string }> };
+const key = JSON.parse(readFileSync(join(HERE, flag('key') ?? 'answer-key.json'), 'utf8')) as { cases: Record<string, { expected_safety: string }> };
 const review = (JSON.parse(readFileSync(REVIEW, 'utf8')) as { replies: Record<string, Review> }).replies;
 const files = readdirSync(RESULTS).filter((f) => /^run-\d+\.jsonl$/.test(f)).sort();
 const recs: Rec[] = files.flatMap((f) => readFileSync(join(RESULTS, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as Rec));
