@@ -44,6 +44,8 @@ Likelihood and impact are pre-control estimates. Residual is after controls. Own
 | RK-22 | Self-harm or suicidal statement goes unanswered | S3 | Low | Severe | Crisis lexicon plus classifier; crisis template with helplines; coaching stops that turn; event reviewed | Low | You + MH reviewer | Safety eval |
 | RK-23 | Minor uses the app | S6 | Low | High | Age gate; mid-use disclosure locks the account and deletes data | Low | You | F-02, EC tests |
 
+**Note on RK-22 (2026-11-04).** The residual "Low" above is the original rating and is kept as written. A coach test on 40 new cases (EVALS.md, "Results on new cases (2026-11-04)") found the crisis lexicon recognised 1 of 14 new real safety messages (8 crisis, 3 emergency, 3 eating-disorder; 0 of 8 crisis wordings, English and Hinglish), so most would reach the AI or a rules answer instead of the crisis template. Until a fix (in progress, issue #8) is tested on a fresh set of cases, treat the residual for RK-22 as not Low.
+
 ## 3. Escalation rules
 
 | Trigger (any channel: check-in, player, coach, onboarding) | Response | Logging | Follow-up |
