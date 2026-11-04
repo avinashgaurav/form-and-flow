@@ -280,3 +280,19 @@ test('cutting or burning yourself in the kitchen asks first instead of assuming'
   }
   assert.deepEqual([classifyText('I want to overdose').kind, classifyText('I want to overdose').confidence], ['crisis', 'confirmed']);
 });
+
+test('digit-grouping commas keep a number whole', () => {
+  assert.equal(classifyText('my target is 1,800 calories a day').kind, 'none');
+  assert.equal(classifyText('I eat 2,500 calories when bulking').kind, 'none');
+  assert.equal(classifyText('1,00,000 steps this month').kind, 'none');
+  // Still a low target with or without the comma (under 1,200 a day).
+  assert.equal(classifyText('500 calories a day').kind, 'ed_signal');
+  assert.equal(classifyText('1,000 calories a day').kind, classifyText('1000 calories a day').kind);
+});
+
+test('zero-width characters and spaced-out letters do not hide a crisis word', () => {
+  for (const t of ['thinking about sui\u200bcide', 'sui\u200dcide', 'thinking about s u i c i d e', 's.u.i.c.i.d.e', 'k i l l myself']) {
+    assert.equal(classifyText(t).kind, 'crisis', t);
+  }
+  assert.equal(classifyText('I a m fine, just tired').kind, 'none');
+});

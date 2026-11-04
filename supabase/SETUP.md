@@ -6,7 +6,7 @@ The app works without a server. These steps turn on backup, the AI coach wording
 
 1. Create a Supabase project in the Mumbai region (`ap-south-1`), per plan/11.
 2. Install the Supabase CLI and link: `supabase link --project-ref YOUR-PROJECT-REF`.
-3. Apply the schema: `supabase db push`. It runs every file in `migrations/` in order (0001 foundations, 0002 nutrition, coach and privacy, 0003 hardening, 0004 photo meals, 0005 weigh-in edits, 0006 safety screen). The coach needs 0006 and the `safety-screen` function before an app version with the AI safety screen is released: without them every message from a user with AI consent gets the fixed safe reply. Apply new migrations before releasing an app version that needs them: for example a photo meal fails to back up until 0004 is in.
+3. Apply the schema: `supabase db push`. It runs every file in `migrations/` in order (0001 foundations, 0002 nutrition, coach and privacy, 0003 hardening, 0004 photo meals, 0005 weigh-in edits, 0006 safety screen). The AI safety screen needs 0006 and the `safety-screen` function; it stays off in the app until you turn it on (section 7). Apply new migrations before releasing an app version that needs them: for example a photo meal fails to back up until 0004 is in.
 
 ## 2. Sign-in by email code
 
@@ -45,6 +45,17 @@ select cron.schedule('purge-expired', '15 3 * * *', 'select purge_expired()');
 ## 6. App
 
 Copy `app/.env.example` to `app/.env` and fill in the project URL and anon (publishable) key. Restart Expo.
+
+## 7. Turn on the AI safety screen
+
+The app always runs the safety word list. The AI safety screen (a second check before every rules answer or coach reply, for users who allowed AI) is behind a build flag and is off by default. It fails closed: once it is on, any problem reaching it means a fixed safe reply instead of an answer. So turn it on only in this order:
+
+1. Apply migration 0006: `supabase db push`.
+2. Deploy the function: `supabase functions deploy safety-screen`.
+3. Run the live smoke test from the repo root with your own key in your own terminal: `npm run ai:smoke`. Every line under "Safety screen" must say PASS. A FAIL there means do not turn the flag on yet.
+4. Set `EXPO_PUBLIC_SAFETY_SCREEN=1` in `app/.env` (and in the web build's environment), then rebuild and release the app.
+
+To turn it off again, set the flag back to `0` and rebuild. There is no automatic fallback to the word list alone when the screen fails: with the flag on, a failure always gets the fixed safe reply.
 
 ## What runs where
 

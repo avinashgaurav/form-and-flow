@@ -1,7 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { COACH_OUTPUT_SCHEMA, renderCoachPrompt, type CoachTone } from './coach-prompt.ts';
 import { PHOTO_OUTPUT_SCHEMA, PHOTO_SYSTEM } from './photo-prompt.ts';
-import { SCREEN_MODEL, SCREEN_OUTPUT_SCHEMA, SCREEN_SYSTEM } from './screen-prompt.ts';
+import { SCREEN_MODEL, SCREEN_OUTPUT_SCHEMA, SCREEN_SYSTEM, wrapScreenMessage } from './screen-prompt.ts';
 
 /**
  * The exact Claude requests the server functions send, in one place, so the smoke test
@@ -39,7 +39,7 @@ export function screenRequest(p: { message: string; model?: string }): Params {
     ...fallback(model),
     output_config: { effort: 'low', format: { type: 'json_schema', schema: SCREEN_OUTPUT_SCHEMA } },
     system: SCREEN_SYSTEM,
-    messages: [{ role: 'user', content: p.message }],
+    messages: [{ role: 'user', content: wrapScreenMessage(p.message) }],
   };
 }
 

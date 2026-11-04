@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
 import { callFunction, supabase } from './backend';
 import { setRemoteModel } from './coach';
+import { SAFETY_SCREEN_ON } from './flags';
 import { requestPush, restore } from './sync';
 
 /** The coach's model call goes through our server only; the phone still validates every reply. */
@@ -55,7 +56,8 @@ export function BackendSync() {
 
   const aiOn = !!state.account && !!state.consents?.aiProcessing;
   useEffect(() => {
-    setRemoteModel(aiOn ? remoteCoach(state.coachModel) : undefined, aiOn ? remoteScreen : undefined);
+    // With the deploy flag off the screen is switched off (null), not missing: the coach runs as before.
+    setRemoteModel(aiOn ? remoteCoach(state.coachModel) : undefined, aiOn && SAFETY_SCREEN_ON ? remoteScreen : null);
   }, [aiOn, state.coachModel]);
 
   // Link this phone to the signed-in account: restore first, push after.

@@ -236,16 +236,24 @@ const ONLY_HURT_HARM = /^(hurt|hurting|hurts|harm|harming|harmed|cut|cutting|bur
 
 const NEGATION = /\b(no|not|never|without|nahi|nhi|koi nahi)\b|नहीं?/;
 
-/** Lower case, Devanagari folded and its digits made ASCII, curly apostrophes straightened, punctuation removed. */
+/**
+ * Lower case, Devanagari folded and its digits made ASCII, curly apostrophes straightened, invisible
+ * format characters (zero-width space and joiners) removed, digit-grouping commas dropped so "1,800"
+ * stays one number, punctuation removed, and runs of four or more spaced single letters ("s u i c i d e",
+ * "s.u.i.c.i.d.e") joined into one word.
+ */
 export function normaliseSafetyText(text: string): string {
   return foldDevanagari(text)
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966))
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0966-\u096f]/g, (d) => String(d.charCodeAt(0) - 0x0966))
     .toLowerCase()
-    .replace(/[‘’ʼ`´]/g, "'")
+    .replace(/[\u2018\u2019\u02bc`\u00b4]/g, "'")
+    .replace(/(\d),(?=\d{2,3}(?!\d))/g, '$1')
     .replace(/[^\p{L}\p{M}\p{N}' ]+/gu, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .replace(/(?<=^| )[a-z](?: [a-z]){3,}(?= |$)/g, (m) => m.replace(/ /g, ''));
 }
 
 function matches(text: string, patterns: RegExp[]): string[] {

@@ -33,14 +33,15 @@ export function coachContext(state: AppState): CoachContext {
  * model for a message the screen has not cleared.
  */
 let remoteModel: ModelCall | undefined;
-let remoteScreen: SafetyScreen | undefined;
-export function setRemoteModel(m: ModelCall | undefined, screen: SafetyScreen | undefined) {
+let remoteScreen: SafetyScreen | null = null;
+/** `screen` is null when the safety screen is switched off for this build (lib/flags.ts). */
+export function setRemoteModel(m: ModelCall | undefined, screen: SafetyScreen | null) {
   remoteModel = m;
   remoteScreen = screen;
 }
 
-export function ask(state: AppState, message: string): Promise<CoachReply> {
-  return coachTurn(message, coachContext(state), { aiAllowed: !!state.consents?.aiProcessing, model: remoteModel, screen: remoteScreen });
+export function ask(state: AppState, message: string, previousCoachText?: string): Promise<CoachReply> {
+  return coachTurn(message, coachContext(state), { aiAllowed: !!state.consents?.aiProcessing, model: remoteModel, screen: remoteScreen, previousCoachText });
 }
 
 /** Turn a confirmed shorten action into the same session patch the Today screen uses. */

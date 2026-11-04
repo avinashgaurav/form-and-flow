@@ -214,6 +214,8 @@ test('deleting an account removes its data but keeps the hashed security log', a
 
 test('the database stamps consent time, so a future-dated grant cannot outrank a withdrawal', async () => {
   await asUser(A, (tx) => tx.query(`insert into consent_records (user_id, purpose, notice_version, granted, at, client_at) values ($1, 'ai_processing', 'v1', true, '2099-01-01', '2099-01-01')`, [A]));
+  // The in-memory database's clock can give two quick inserts the same time; wait so the order is real.
+  await new Promise((r) => setTimeout(r, 20));
   await asUser(A, (tx) => tx.query(`insert into consent_records (user_id, purpose, notice_version, granted) values ($1, 'ai_processing', 'v1', false)`, [A]));
   const r = await asUser(A, (tx) => tx.query<{ granted: boolean }>(`select granted from consent_records where purpose = 'ai_processing' order by at desc limit 1`));
   assert.equal(r.rows[0]!.granted, false);
