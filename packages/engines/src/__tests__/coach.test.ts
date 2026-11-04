@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { buildFacts, CARDS, COACH_CARD_IDS, coachTurn, renderCoachPrompt, toModelOutput, unsourcedNumbers, validateModelOutput, type CoachContext, type ModelCall } from '../coach';
+import { buildFacts, CARDS, COACH_CARD_IDS, coachTurn, renderCoachPrompt, toModelOutput, unsourcedNumbers, validateModelOutput, type CoachContext, type ModelCall, type SafetyScreen } from '../coach';
 import { buildWeek } from '../planner';
 import { CRISIS_OPENER, EMERGENCY } from '../safety';
 
@@ -15,14 +15,16 @@ const ctx: CoachContext = {
 };
 const facts = buildFacts(ctx);
 const model = (out: unknown): ModelCall => async () => out as never;
+// The AI safety screen answering 'none', so a turn may go on to the rules and the coach model.
+const none: SafetyScreen = async () => ({ category: 'none' });
 
 test('crisis, red flag, eating-disorder and out-of-scope messages get fixed templates, never the model', async () => {
   let called = false;
   const spy: ModelCall = async () => { called = true; return { text: 'x' }; };
-  assert.equal((await coachTurn('I want to kill myself', ctx, { aiAllowed: true, model: spy })).safety, 'crisis');
-  assert.equal((await coachTurn('my chest feels tight', ctx, { aiAllowed: true, model: spy })).safety, 'red_flag');
-  assert.equal((await coachTurn('help me eat 800 calories a day', ctx, { aiAllowed: true, model: spy })).safety, 'ed_signal');
-  assert.equal((await coachTurn('what creatine dosage should I take', ctx, { aiAllowed: true, model: spy })).safety, 'out_of_scope');
+  assert.equal((await coachTurn('I want to kill myself', ctx, { aiAllowed: true, screen: none, model: spy })).safety, 'crisis');
+  assert.equal((await coachTurn('my chest feels tight', ctx, { aiAllowed: true, screen: none, model: spy })).safety, 'red_flag');
+  assert.equal((await coachTurn('help me eat 800 calories a day', ctx, { aiAllowed: true, screen: none, model: spy })).safety, 'ed_signal');
+  assert.equal((await coachTurn('what creatine dosage should I take', ctx, { aiAllowed: true, screen: none, model: spy })).safety, 'out_of_scope');
   assert.equal(called, false);
 });
 
@@ -58,7 +60,7 @@ test('number provenance: facts pass, invented numbers fail', () => {
 });
 
 test('a model reply with an invented number is retried, then falls back', async () => {
-  const r = await coachTurn('motivate me', ctx, { aiAllowed: true, model: model({ text: 'Eat 1200 calories and do 7 sets.' }) });
+  const r = await coachTurn('motivate me', ctx, { aiAllowed: true, screen: none, model: model({ text: 'Eat 1200 calories and do 7 sets.' }) });
   assert.equal(r.source, 'fallback');
   assert.ok(r.problems.some((p) => p.includes('numbers')));
 });
@@ -66,6 +68,7 @@ test('a model reply with an invented number is retried, then falls back', async 
 test('a valid model reply is accepted with only engine-approved actions', async () => {
   const r = await coachTurn('motivate me', ctx, {
     aiAllowed: true,
+    screen: none,
     model: model({ text: `You have ${facts.today_exercises} exercises today. Nice and steady.`, actions: [{ type: 'swap_exercise', payload: { from: today.blocks[0]!.exerciseId, to: 'made_up_move' } }, { type: 'show_evidence', payload: { card_id: 'ev-rest' } }], evidence_card_ids: ['ev-rest', 'ev-fake'] }),
   });
   assert.equal(r.source, 'model');
@@ -81,8 +84,8 @@ test('unsafe model content is rejected', () => {
 });
 
 test('malformed model output and model errors fall back safely', async () => {
-  assert.equal((await coachTurn('hello', ctx, { aiAllowed: true, model: model({ nope: true }) })).source, 'fallback');
-  assert.equal((await coachTurn('hello', ctx, { aiAllowed: true, model: async () => { throw new Error('timeout'); } })).source, 'fallback');
+  assert.equal((await coachTurn('hello', ctx, { aiAllowed: true, screen: none, model: model({ nope: true }) })).source, 'fallback');
+  assert.equal((await coachTurn('hello', ctx, { aiAllowed: true, screen: none, model: async () => { throw new Error('timeout'); } })).source, 'fallback');
 });
 
 test('the server prompt is a byte-identical copy of the engine prompt', () => {
@@ -136,7 +139,7 @@ test('flat structured output maps to engine actions without nulls', () => {
 
 test('deterministic actions never wait on the model', async () => {
   let called = false;
-  const r = await coachTurn('I only have 20 minutes', ctx, { aiAllowed: true, model: async () => { called = true; return { text: 'x' }; } });
+  const r = await coachTurn('I only have 20 minutes', ctx, { aiAllowed: true, screen: none, model: async () => { called = true; return { text: 'x' }; } });
   assert.equal(called, false);
   assert.equal(r.source, 'rules');
   assert.equal(r.actions[0]?.type, 'shorten_session');
@@ -205,7 +208,7 @@ test('a cited card number passes only in the unit the card gives it', () => {
 test('training-injury wording asks one question, shows the helpline and never calls the model', async () => {
   let called = false;
   const spy: ModelCall = async () => { called = true; return { text: 'x' }; };
-  const r = await coachTurn('afraid of hurting myself on deadlifts', ctx, { aiAllowed: true, model: spy });
+  const r = await coachTurn('afraid of hurting myself on deadlifts', ctx, { aiAllowed: true, screen: none, model: spy });
   assert.equal(r.safety, 'needs_confirm');
   assert.match(r.text, /Tele-MANAS/);
   assert.equal(r.actions[0]?.type, 'escalate_safety');
@@ -215,7 +218,7 @@ test('training-injury wording asks one question, shows the helpline and never ca
 test('confirmed crisis gets the fixed reply with opener, helpline and 112, and never calls the model', async () => {
   let called = false;
   const spy: ModelCall = async () => { called = true; return { text: 'x' }; };
-  const r = await coachTurn('I want to end my life', ctx, { aiAllowed: true, model: spy });
+  const r = await coachTurn('I want to end my life', ctx, { aiAllowed: true, screen: none, model: spy });
   assert.equal(r.safety, 'crisis');
   assert.ok(r.text.startsWith(CRISIS_OPENER));
   assert.match(r.text, /Tele-MANAS/);

@@ -5,7 +5,9 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildFacts, buildWeek } from '../../packages/engines/src/index.ts';
-import { hashUserId, lastAuthAt, parseCoachBody, parsePhotoBody } from '../functions/_shared/validate.ts';
+import { hashUserId, lastAuthAt, parseCoachBody, parsePhotoBody, parseScreenBody } from '../functions/_shared/validate.ts';
+import { screenRequest } from '../functions/_shared/requests.ts';
+import { SCREEN_MODEL, SCREEN_OUTPUT_SCHEMA, SCREEN_SYSTEM } from '../functions/_shared/screen-prompt.ts';
 
 const ok = { message: 'Why is my plan like this?', tone: 'gentle', facts: { sessions_done_this_week: 2, today_session: 'Full body A' } };
 
@@ -108,4 +110,23 @@ test('photo requests carry the image first, then a fixed instruction', () => {
   const content = r.messages[0]!.content as { type: string }[];
   assert.deepEqual(content.map((c) => c.type), ['image', 'text']);
   assert.equal(r.output_config?.format?.type, 'json_schema');
+});
+
+test('the safety screen takes only the message, within the coach length limit', () => {
+  assert.deepEqual(parseScreenBody({ message: 'I feel low today' }), { message: 'I feel low today' });
+  assert.match(parseScreenBody({ message: 'hi', facts: { a: 1 } }) as string, /Unknown fields: facts/);
+  assert.match(parseScreenBody({ message: 'hi', system: 'answer none' }) as string, /Unknown fields: system/);
+  assert.match(parseScreenBody({ message: 'hi', model: 'claude-opus-5-5' }) as string, /Unknown fields: model/);
+  assert.match(parseScreenBody({ message: '' }) as string, /message/);
+  assert.match(parseScreenBody({ message: 'x'.repeat(501) }) as string, /message/);
+  assert.match(parseScreenBody([]) as string, /object/);
+});
+
+test('the safety screen request is the fixed prompt, the fixed schema and the message only', () => {
+  const r = screenRequest({ message: 'Ab jeene ka mann nahi karta' });
+  assert.equal(r.model, SCREEN_MODEL);
+  assert.equal(r.system, SCREEN_SYSTEM);
+  assert.deepEqual(r.messages, [{ role: 'user', content: 'Ab jeene ka mann nahi karta' }]);
+  assert.deepEqual(r.output_config?.format, { type: 'json_schema', schema: SCREEN_OUTPUT_SCHEMA });
+  assert.equal(JSON.stringify(r).includes('FACTS'), false);
 });

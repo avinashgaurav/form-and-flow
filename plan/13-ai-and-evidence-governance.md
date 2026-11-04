@@ -20,6 +20,13 @@ flowchart TD
   CONF -->|A1: no confirmation needed| SAVE
 ```
 
+### Safety pre-checks: two layers, fail closed
+
+1. **Word list (code, every message, offline, with or without consent).** English, Hinglish and Hindi in Devanagari (`packages/engines/src/safety.ts`). A match gets the fixed template and the message reaches no AI.
+2. **AI safety screen (with AI consent only).** Every message the word list did not catch goes to a small model (`claude-haiku-5-5`, `functions/safety-screen`) before the rules answers and the coach model. It returns one word from a fixed JSON schema: `crisis`, `emergency`, `eating_disorder` or `none`. Code maps `crisis`, `emergency` and `eating_disorder` to the same fixed templates as the word list. Anything other than a schema-valid `none` (error, refusal, timeout after 6 s on the phone and 4 s for the model call, malformed answer, limits reached, no connection) gets a fixed reply that leads with the crisis helpline and names 112, and asks the user to resend. The model never writes the reply and can only send more messages to a fixed reply, never fewer.
+
+Privacy: the screen gets the message text only (no facts, profile or history); `model_runs` records purpose, model, tokens and outcome, never the message. Cost and latency: one extra small-model call per uncaught message.
+
 ### Number provenance check (enforces the one rule)
 
 Every number in the model's text (kcal, grams, kg, reps, sets, minutes, percentages) must match a value in the `facts` block the context builder supplied for that turn, within rounding. A number with no source is stripped and the turn retried once; on a second failure the deterministic fallback is shown. This is the same design as Kokum's `reattach()`: the model can phrase and order, it cannot invent state.

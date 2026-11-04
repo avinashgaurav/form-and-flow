@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { CALLS_PER_HOUR, startRun, TOKENS_PER_DAY } from '../functions/_shared/run.ts';
+import { CALLS_PER_HOUR, SCREEN_CALLS_PER_HOUR, SCREEN_TOKENS_PER_DAY, startRun, TOKENS_PER_DAY } from '../functions/_shared/run.ts';
 
 type Row = Record<string, unknown>;
 
@@ -177,4 +177,34 @@ test(`call ${CALLS_PER_HOUR} in an hour is still allowed`, async () => {
   const { db, ctx } = setup();
   for (let i = 0; i < CALLS_PER_HOUR - 1; i++) db.tables.model_runs!.push({ user_id: USER.id, created_at: ago(10 * 60_000), stop_reason: 'end_turn' });
   assert.ok(!((await startRun(ctx, 'coach_turn', 'm', 'v')) instanceof Response));
+});
+
+test('safety screen calls have their own hourly limit and do not use up the coach limit', async () => {
+  const { db, ctx } = setup();
+  for (let i = 0; i < SCREEN_CALLS_PER_HOUR; i++) db.tables.model_runs!.push({ user_id: USER.id, purpose: 'safety_screen', created_at: ago(60_000), stop_reason: 'end_turn', input_tokens: 400, output_tokens: 20 });
+  // A full screen hour does not block the coach.
+  assert.ok(!((await startRun(ctx, 'coach_turn', 'm', 'v')) instanceof Response));
+  // The next screen call is refused (and the phone then shows the fixed safe reply).
+  assert.equal(await code(await startRun(ctx, 'safety_screen', 'claude-haiku-5-5', 'screen-v')), 'RATE_LIMITED');
+});
+
+test('a full coach hour does not block the safety screen', async () => {
+  const { db, ctx } = setup();
+  for (let i = 0; i < CALLS_PER_HOUR + 5; i++) db.tables.model_runs!.push({ user_id: USER.id, purpose: 'coach_turn', created_at: ago(60_000), stop_reason: 'end_turn', input_tokens: 10, output_tokens: 10 });
+  const run = await startRun(ctx, 'safety_screen', 'claude-haiku-5-5', 'screen-v');
+  assert.ok(!(run instanceof Response));
+  assert.equal(db.tables.model_runs!.filter((r) => r.purpose === 'safety_screen').length, 1);
+});
+
+test('the safety screen has its own daily token cap', async () => {
+  const { db, ctx } = setup();
+  db.tables.model_runs!.push({ user_id: USER.id, purpose: 'safety_screen', created_at: ago(5 * 3_600_000), stop_reason: 'end_turn', input_tokens: SCREEN_TOKENS_PER_DAY, output_tokens: 1 });
+  assert.equal(await code(await startRun(ctx, 'safety_screen', 'm', 'v')), 'RATE_LIMITED');
+  assert.ok(!((await startRun(ctx, 'coach_turn', 'm', 'v')) instanceof Response));
+});
+
+test('the safety screen needs AI consent like every other model call', async () => {
+  const { db, ctx } = setup(null);
+  assert.equal(await code(await startRun(ctx, 'safety_screen', 'm', 'v')), 'FORBIDDEN');
+  assert.equal(db.tables.model_runs!.length, 0);
 });

@@ -267,3 +267,9 @@ test('a stale weigh-in edit from another phone cannot overwrite a newer one', as
   await upsert(81, '2026-10-19T11:00:00Z');
   assert.equal(await read(), 79, 'older edit is ignored');
 });
+
+test('model_runs accepts safety screen runs and still rejects unknown purposes', async () => {
+  await db.query(`insert into model_runs (user_id, purpose, model, prompt_version, schema_valid) values ($1, 'safety_screen', 'claude-haiku-5-5', 'screen-v', true)`, [A]);
+  await rejects(db.query(`insert into model_runs (user_id, purpose, model, prompt_version, schema_valid) values ($1, 'anything_else', 'm', 'v', true)`, [A]), /model_runs_purpose_check/);
+  await rejects(asUser(A, (tx) => tx.query(`insert into model_runs (user_id, purpose, model, prompt_version, schema_valid) values ($1, 'safety_screen', 'm', 'v', true)`, [A])), /permission denied/);
+});

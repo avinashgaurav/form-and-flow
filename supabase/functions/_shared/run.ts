@@ -11,6 +11,14 @@ import { hashUserId } from './validate.ts';
 /** Model calls, not turns: a coach turn whose first answer is rejected makes a second call. */
 export const CALLS_PER_HOUR = 30;
 export const TOKENS_PER_DAY = 200_000;
+/**
+ * The safety screen runs before every coach turn the word list does not catch, and a refused screen
+ * shows the fixed safe reply. So it has its own, larger hourly limit and does not use up the coach's.
+ */
+export const SCREEN_CALLS_PER_HOUR = 60;
+export const SCREEN_TOKENS_PER_DAY = 200_000;
+
+export type RunPurpose = 'coach_turn' | 'meal_parse' | 'safety_screen';
 
 export interface Run {
   model: string;
@@ -19,7 +27,7 @@ export interface Run {
 
 export async function startRun(
   ctx: { user: User; userClient: SupabaseClient; admin: SupabaseClient; traceId: string },
-  purpose: 'coach_turn' | 'meal_parse',
+  purpose: RunPurpose,
   model: string,
   promptVersion: string,
 ): Promise<Run | Response> {
@@ -48,17 +56,21 @@ export async function startRun(
 
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
   const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
-  const [hour, day] = await Promise.all([
-    admin.from('model_runs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', hourAgo).neq('stop_reason', 'rate_limited'),
-    // At most 30 calls an hour get here, so a day stays well under the 1,000-row read limit.
-    admin.from('model_runs').select('input_tokens, output_tokens').eq('user_id', user.id).gte('created_at', dayAgo).neq('stop_reason', 'rate_limited'),
-  ]);
+  // Screen calls count only against the screen limit; coach and photo calls share the other limits.
+  const screen = purpose === 'safety_screen';
+  const hourQuery = admin.from('model_runs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', hourAgo).neq('stop_reason', 'rate_limited');
+  // At most 30 calls an hour get here, so a day stays well under the 1,000-row read limit.
+  const dayQuery = admin.from('model_runs').select('input_tokens, output_tokens').eq('user_id', user.id).gte('created_at', dayAgo).neq('stop_reason', 'rate_limited');
+  const [hour, day] = await Promise.all(
+    screen ? [hourQuery.eq('purpose', 'safety_screen'), dayQuery.eq('purpose', 'safety_screen')] : [hourQuery.neq('purpose', 'safety_screen'), dayQuery.neq('purpose', 'safety_screen')],
+  );
   if (hour.error || day.error) {
     await update({ stop_reason: 'error_limits' });
     return fail('INTERNAL_ERROR', 'Could not check the limits', 500, traceId);
   }
   const tokensToday = (day.data ?? []).reduce((n, r) => n + (r.input_tokens ?? 0) + (r.output_tokens ?? 0), 0);
-  if ((hour.count ?? 0) > CALLS_PER_HOUR || tokensToday > TOKENS_PER_DAY) {
+  const overLimit = screen ? (hour.count ?? 0) > SCREEN_CALLS_PER_HOUR || tokensToday > SCREEN_TOKENS_PER_DAY : (hour.count ?? 0) > CALLS_PER_HOUR || tokensToday > TOKENS_PER_DAY;
+  if (overLimit) {
     // A refused request leaves no row behind, so refusals cannot pile up.
     const del = await admin.from('model_runs').delete().eq('id', runId);
     if (del.error) await update({ stop_reason: 'rate_limited' });

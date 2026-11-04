@@ -6,7 +6,7 @@ The app works without a server. These steps turn on backup, the AI coach wording
 
 1. Create a Supabase project in the Mumbai region (`ap-south-1`), per plan/11.
 2. Install the Supabase CLI and link: `supabase link --project-ref YOUR-PROJECT-REF`.
-3. Apply the schema: `supabase db push`. It runs every file in `migrations/` in order (0001 foundations, 0002 nutrition, coach and privacy, 0003 hardening, 0004 photo meals). Apply new migrations before releasing an app version that needs them: for example a photo meal fails to back up until 0004 is in.
+3. Apply the schema: `supabase db push`. It runs every file in `migrations/` in order (0001 foundations, 0002 nutrition, coach and privacy, 0003 hardening, 0004 photo meals, 0005 weigh-in edits, 0006 safety screen). The coach needs 0006 and the `safety-screen` function before an app version with the AI safety screen is released: without them every message from a user with AI consent gets the fixed safe reply. Apply new migrations before releasing an app version that needs them: for example a photo meal fails to back up until 0004 is in.
 
 ## 2. Sign-in by email code
 
@@ -17,11 +17,12 @@ Authentication > Providers > Email: enable it. Authentication > Email Templates 
 ```
 supabase secrets set ANTHROPIC_API_KEY=...
 supabase functions deploy coach
+supabase functions deploy safety-screen
 supabase functions deploy meal-photo
 supabase functions deploy privacy
 ```
 
-Each user picks the coach model in Settings: Fast (`claude-haiku-5-5`), Balanced (`claude-sonnet-5-5`) or Most capable (`claude-opus-5-5`). `COACH_MODEL` is optional and only sets the default for users who have not picked; without it the default is `claude-opus-5-5`. The plan's cost model (plan/06) assumed `claude-sonnet-5-5`. `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are provided to functions automatically.
+Each user picks the coach model in Settings: Fast (`claude-haiku-5-5`), Balanced (`claude-sonnet-5-5`) or Most capable (`claude-opus-5-5`). `COACH_MODEL` is optional and only sets the default for users who have not picked; without it the default is `claude-opus-5-5`. The plan's cost model (plan/06) assumed `claude-sonnet-5-5`. The safety screen always uses `claude-haiku-5-5`; the user's choice does not change it. `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are provided to functions automatically.
 
 ## 4. Check the AI before you rely on it
 
@@ -52,9 +53,10 @@ Copy `app/.env.example` to `app/.env` and fill in the project URL and anon (publ
 | Plan, safety screening, progression, nutrition maths, coach rules and validators | Phone (`@ff/engines`) | Works offline |
 | Backup of profile, consents, safety answers and limits, workouts, sets, check-ins, reports | Postgres, RLS on every table | Phone is the source of truth; backup mirrors it |
 | Coach chat history | Phone only, 90 days | Not sent to the backup |
-| Coach wording | `functions/coach` calls Claude | Needs backup sign-in and AI consent; server builds its own prompt |
+| AI safety screen | `functions/safety-screen` calls Claude Haiku | Needs backup sign-in and AI consent. Gets only the message text of messages the phone's word list did not catch; returns one category; the message is not stored. Any error means the phone shows the fixed safe reply |
+| Coach wording | `functions/coach` calls Claude | Needs backup sign-in and AI consent; server builds its own prompt; only after the safety screen answered "none" |
 | Meal photos | `functions/meal-photo` calls Claude vision | Returns only a bounded food list; the photo is never stored; the phone's engine counts calories |
-| Limits | `functions/_shared/run.ts` | Shared by both AI functions: 30 model calls an hour and 200,000 tokens a day per user |
+| Limits | `functions/_shared/run.ts` | Coach and photos share 30 model calls an hour and 200,000 tokens a day per user. The safety screen has its own 60 calls an hour and 200,000 tokens a day, so it never uses up the coach's |
 | Export and deletion | `functions/privacy` | Deletion needs a sign-in in the last 15 minutes |
 | Security log | `security_log`, hashed user ID, no content | Kept 1 year after deletion (DPDP R-05, counsel to confirm) |
 

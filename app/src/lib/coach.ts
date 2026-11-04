@@ -1,4 +1,4 @@
-import { coachTurn, shortenSession, substitutes, type CoachContext, type CoachReply, type ModelCall } from '@ff/engines';
+import { coachTurn, shortenSession, substitutes, type CoachContext, type CoachReply, type ModelCall, type SafetyScreen } from '@ff/engines';
 import type { AppState } from '../store/types';
 import { numericMode, nutritionFacts } from './food';
 import { currentPlan, effectiveSession, plannedFor, todayIndex } from './plan';
@@ -27,14 +27,20 @@ export function coachContext(state: AppState): CoachContext {
   };
 }
 
-/** The model is only reachable through our server, and only with AI consent (set in lib/backend). */
+/**
+ * The coach model and the AI safety screen are only reachable through our server, and only with AI
+ * consent (set in lib/BackendSync). They are set together: the engine refuses to call the coach
+ * model for a message the screen has not cleared.
+ */
 let remoteModel: ModelCall | undefined;
-export function setRemoteModel(m: ModelCall | undefined) {
+let remoteScreen: SafetyScreen | undefined;
+export function setRemoteModel(m: ModelCall | undefined, screen: SafetyScreen | undefined) {
   remoteModel = m;
+  remoteScreen = screen;
 }
 
 export function ask(state: AppState, message: string): Promise<CoachReply> {
-  return coachTurn(message, coachContext(state), { aiAllowed: !!state.consents?.aiProcessing, model: remoteModel });
+  return coachTurn(message, coachContext(state), { aiAllowed: !!state.consents?.aiProcessing, model: remoteModel, screen: remoteScreen });
 }
 
 /** Turn a confirmed shorten action into the same session patch the Today screen uses. */

@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { COACH_OUTPUT_SCHEMA, renderCoachPrompt, type CoachTone } from './coach-prompt.ts';
 import { PHOTO_OUTPUT_SCHEMA, PHOTO_SYSTEM } from './photo-prompt.ts';
+import { SCREEN_MODEL, SCREEN_OUTPUT_SCHEMA, SCREEN_SYSTEM } from './screen-prompt.ts';
 
 /**
  * The exact Claude requests the server functions send, in one place, so the smoke test
@@ -22,6 +23,22 @@ export function coachRequest(p: { model: string; tone: CoachTone; facts: Record<
     ...fallback(p.model),
     output_config: { effort: 'low', format: { type: 'json_schema', schema: COACH_OUTPUT_SCHEMA } },
     system: renderCoachPrompt(p.tone, p.facts, p.retry),
+    messages: [{ role: 'user', content: p.message }],
+  };
+}
+
+/**
+ * The AI safety screen: one fixed small model, the fixed screen prompt and the user's message only (no
+ * facts, no profile). The answer is one word from a fixed list; code decides what the user sees.
+ */
+export function screenRequest(p: { message: string; model?: string }): Params {
+  const model = p.model ?? SCREEN_MODEL;
+  return {
+    model,
+    max_tokens: 1000,
+    ...fallback(model),
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: SCREEN_OUTPUT_SCHEMA } },
+    system: SCREEN_SYSTEM,
     messages: [{ role: 'user', content: p.message }],
   };
 }
