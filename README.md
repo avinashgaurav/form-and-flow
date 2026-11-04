@@ -2,18 +2,18 @@
 
 [![CI](https://github.com/avinashgaurav/form-and-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/avinashgaurav/form-and-flow/actions/workflows/ci.yml)
 
-A fitness and food coach for India. It plans training around your real week, logs Indian meals by typing (English or Hinglish) or by photo, and explains every change it makes.
+A fitness and food coach for India. It plans training around your real week, logs Indian meals by typing (English or Hinglish) or by photo, and explains every change it makes. Photo logging needs the backend, which is not live yet ([#12](https://github.com/avinashgaurav/form-and-flow/issues/12)).
 
 ![Form & Flow: the week the code builds, a session, and a typed Indian meal turned into items (sample data)](docs/demo.gif)
 
 > [!NOTE]
 > **Testing the AI coach.** I tested the coach on 27 fixed cases and ran the test 3 times, using Opus 5.5. The test found two wordings of a safety message that reached the AI instead of the fixed safety reply. It also found a checker rule that rejected nearly half the good replies. After the fixes: safety messages handled correctly went from 7/9 to **9/9**. Good replies wrongly flagged went from 23/47 to **4/47**. User figures repeated back and reaching the user went from 1 to **0**. Wrong numbers were 0/54 both times. I wrote the fixes after seeing these same cases, so treat the after-fix numbers as a best case. Details in [EVALS.md](EVALS.md).
 >
-> **On new cases** the code was never tuned on (40 cases, 3 runs): wrong numbers were 0/60, and good replies wrongly flagged were 7/56 (labelled by an AI reviewer, not yet confirmed by me). But the safety word list caught only **1 of 14** real safety messages (crisis wordings 0/8, in English and Hinglish). After the safety fix, the same cases scored 20/20, with 1 of 26 other messages wrongly given a safety reply; that is a best case, because I wrote the fix after seeing them.
+> **On new cases** the code was never tuned on (40 cases, 3 runs): wrong numbers were 0/60, and good replies wrongly flagged were 7/56 (labelled by an AI reviewer, not yet confirmed by me). But the old safety word list (before the fix) caught only **1 of 14** real safety messages (crisis wordings 0/8, in English and Hinglish). After the safety fix, the same cases scored 20/20, with 1 of 26 other messages wrongly given a safety reply; that is a best case, because I wrote the fix after seeing them.
 >
 > **The safety fix.** It has two parts: a broader word list, and an AI safety screen that turns any answer other than a clear "none" (no safety issue), including an error or a timeout, into the fixed safe reply. On a fresh hidden set written before the fix (24 safety messages and 16 harmless lookalikes, 3 runs), all 24 got the right fixed reply, 0 reached the coach, and all 16 lookalikes were let through. But 17 of the 24 share wording with what the fix was tuned on. On the 7 that do not, the word list alone caught 1 and the AI screen caught the other 6.
 >
-> **What is live today.** The live app runs on the phone only: there is no backend yet, so no AI coach, no AI meal photos and no AI safety screen. The broader word list is live. The AI safety screen is built and tested but switched off until a backend exists ([#12](https://github.com/avinashgaurav/form-and-flow/issues/12); safety work in [#8](https://github.com/avinashgaurav/form-and-flow/issues/8)). So users of the live app rely on the word list alone, and on the 7 fresh safety messages with wording the fix had not seen, it caught 1.
+> **What is live today.** The live app runs on the phone only: there is no backend yet, so no AI coach, no AI meal photos and no AI safety screen. The broader word list is live. The AI safety screen is built and tested but switched off until a backend exists ([#12](https://github.com/avinashgaurav/form-and-flow/issues/12); safety fix: [#8](https://github.com/avinashgaurav/form-and-flow/issues/8) (closed), [PR #9](https://github.com/avinashgaurav/form-and-flow/pull/9)). So users of the live app rely on the word list alone, and on the 7 fresh safety messages with wording the fix had not seen, it caught 1.
 
 **Live:** https://form-and-flow.vercel.app
 
@@ -27,7 +27,7 @@ A fitness and food coach for India. It plans training around your real week, log
 |---|---|
 | Today | Today's session or rest day, a 3-tap check-in, shorten the session when time is short |
 | Train | The week's plan and a workout player: a looping 3D demo of every exercise, sets, rest timer, swaps, "something hurts" |
-| Eat | Type, search or photograph a meal; check every item; calories and protein shown as honest ranges; usual meals in 2 taps |
+| Eat | Type, search or photograph a meal (photo logging needs the backend and is not live yet); check every item; calories and protein shown as honest ranges; usual meals in 2 taps |
 | Coach | Answers from your plan's rules, with optional AI wording |
 | Progress | Workouts per week, last 7 days of food against your guide, optional weight trend, strength history |
 
