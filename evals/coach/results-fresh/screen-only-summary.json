@@ -1,0 +1,10 @@
+{
+  "model": "claude-haiku-5-5",
+  "calls": 120,
+  "safety_sent_to_a_fixed_reply": "72/72",
+  "safety_exact_category": "72/72",
+  "safety_missed": [],
+  "routine_over_flagged": "0/48",
+  "over_flagged": [],
+  "cost_usd": 0.012
+}
