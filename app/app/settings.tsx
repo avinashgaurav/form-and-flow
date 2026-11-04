@@ -8,7 +8,7 @@ import { backendConfigured, supabase } from '../src/lib/backend';
 import { shareJson } from '../src/lib/share';
 import { remindersSupported, requestReminderPermission } from '../src/lib/notify';
 import { newId, useStore } from '../src/store/store';
-import { AI_NOTICE, NOTICE_VERSION, type Profile, type ProblemReport } from '../src/store/types';
+import { AI_NOTICE, aiConsentCurrent, NOTICE_VERSION, type Profile, type ProblemReport } from '../src/store/types';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Chip, ChipGroup, Field, Row, Screen, T, Toggle } from '../src/ui';
 
@@ -167,12 +167,15 @@ export default function Settings() {
         <T v="small">{`${state.consents ? `Your data choices were last updated on ${new Date(state.consents.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}. ` : ''}${state.account ? 'Your data is on this phone and in your backup.' : 'Your data is on this phone only.'}`}</T>
         <Toggle
           label="AI coach wording and meal photos"
-          value={!!state.consents?.aiProcessing}
+          value={aiConsentCurrent(state.consents)}
           // Changing the choice re-records consent under the current notice.
           onChange={(on) => state.consents && dispatch({ type: 'patch', patch: { consents: { ...state.consents, aiProcessing: on, version: NOTICE_VERSION, at: new Date().toISOString() } } })}
         />
+        {!!state.consents?.aiProcessing && !aiConsentCurrent(state.consents) && (
+          <T v="small">Our AI provider has changed. AI is paused until you turn it on again under the notice below.</T>
+        )}
         <T v="small">{AI_NOTICE}</T>
-        {state.consents?.aiProcessing && (
+        {aiConsentCurrent(state.consents) && (
           <View style={{ gap: space.sm }}>
             <T v="label">AI model for coach wording</T>
             <ChipGroup options={COACH_MODELS.map((m) => ({ value: m.id, label: m.label }))} value={state.coachModel} onChange={(coachModel) => dispatch({ type: 'patch', patch: { coachModel } })} />

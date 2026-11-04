@@ -114,6 +114,18 @@ test('with consent and room under the limits, a run is reserved before the call'
   );
 });
 
+test('the run records which AI provider served it; without one the column default applies', async () => {
+  const { db, ctx } = setup();
+  const run = await startRun(ctx, 'safety_screen', 'gemini-3.5-flash-lite', 'screen-v', 'gemini');
+  assert.ok(!(run instanceof Response));
+  const old = await startRun(ctx, 'coach_turn', 'claude-opus-5-5', 'coach-v');
+  assert.ok(!(old instanceof Response));
+  assert.deepEqual(
+    db.tables.model_runs!.map((r) => [r.provider, r.model]),
+    [['gemini', 'gemini-3.5-flash-lite'], [undefined, 'claude-opus-5-5']],
+  );
+});
+
 test(`call ${CALLS_PER_HOUR + 1} in an hour is refused and leaves no row behind`, async () => {
   const { db, ctx } = setup();
   for (let i = 0; i < CALLS_PER_HOUR; i++) db.tables.model_runs!.push({ user_id: USER.id, created_at: ago(10 * 60_000), stop_reason: 'end_turn', input_tokens: 10, output_tokens: 10 });

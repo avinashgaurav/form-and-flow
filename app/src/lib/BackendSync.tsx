@@ -1,6 +1,7 @@
 import type { CoachModelId, ModelCall, ModelOutput, SafetyScreen } from '@ff/engines';
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
+import { aiConsentCurrent } from '../store/types';
 import { callFunction, supabase } from './backend';
 import { setRemoteModel } from './coach';
 import { SAFETY_SCREEN_ON } from './flags';
@@ -54,7 +55,7 @@ export function BackendSync() {
     return () => data.subscription.unsubscribe();
   }, [state.hydrated, dispatch, getState]);
 
-  const aiOn = !!state.account && !!state.consents?.aiProcessing;
+  const aiOn = !!state.account && aiConsentCurrent(state.consents);
   useEffect(() => {
     // With the deploy flag off the screen is switched off (null), not missing: the coach runs as before.
     setRemoteModel(aiOn ? remoteCoach(state.coachModel) : undefined, aiOn && SAFETY_SCREEN_ON ? remoteScreen : null);

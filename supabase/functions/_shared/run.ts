@@ -31,6 +31,8 @@ export async function startRun(
   purpose: RunPurpose,
   model: string,
   promptVersion: string,
+  /** Recorded in model_runs.provider; the column defaults to 'anthropic' when it is left out. */
+  provider?: string,
 ): Promise<Run | Response> {
   const { user, userClient, admin, traceId } = ctx;
 
@@ -42,7 +44,7 @@ export async function startRun(
   // Reserve first, then count including the reservation: parallel requests see each other.
   const reserved = await admin
     .from('model_runs')
-    .insert({ user_id: user.id, purpose, model, prompt_version: promptVersion, schema_valid: false, stop_reason: 'pending' })
+    .insert({ user_id: user.id, purpose, ...(provider ? { provider } : {}), model, prompt_version: promptVersion, schema_valid: false, stop_reason: 'pending' })
     .select('id')
     .single();
   if (reserved.error) {

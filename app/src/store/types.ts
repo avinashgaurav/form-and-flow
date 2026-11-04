@@ -1,13 +1,43 @@
 import { DEFAULT_COACH_MODEL, DEFAULT_REMINDERS, type AllergenTag, type CoachModelId, type WeightEntry, type Diet, type FoodRef, type FoodUnit, type LogSnapshot, type OilLevel, type Sex, type Answer, type Block, type Goal, type PlannedSession, type QuestionId, type ReadinessResult, type Region, type ReminderPrefs, type Restriction, type TrainingProfile, type WeekPlan } from '@ff/engines';
-import { SAFETY_SCREEN_ON } from '../lib/flags';
+import { AI_PROVIDER, SAFETY_SCREEN_ON } from '../lib/flags';
 
-/** Bumped when the notice changes; .2 added meal photos to the AI section, .3 the AI safety check. */
-export const NOTICE_VERSION = SAFETY_SCREEN_ON ? 'notice-draft-2026-11-04.3' : 'notice-draft-2026-10-19.2';
+/**
+ * Notices that name Google (Gemini) as the AI provider. Bumped when the notice changes; .2 added meal
+ * photos to the AI section, .3 the AI safety check, .4 the switch from Anthropic to Google.
+ */
+export const GEMINI_NOTICE_VERSIONS = ['notice-draft-2026-11-04.4', 'notice-draft-2026-11-04.4-noscreen'] as const;
 
-/** The AI paragraph of the notice, shown in Settings and before the first photo. It names the safety check only in builds that have it. */
-export const AI_NOTICE = SAFETY_SCREEN_ON
-  ? 'If you allow it, these go to Anthropic, our AI provider, which may process them outside India: every coach message that the app\'s own safety word list does not already catch, first to an automatic safety check and then, with a short summary of your plan, to word the coach\'s reply (never your name or email); and meal photos you choose to send so it can name the foods. Messages the word list catches never go to the AI. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.'
-  : 'If you allow it, two things go to Anthropic, our AI provider, which may process them outside India: a short summary of your plan to word coach replies (never your name or email), and meal photos you choose to send so it can name the foods. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.';
+export function noticeVersion(provider: 'gemini' | 'anthropic', screenOn: boolean): string {
+  if (provider === 'gemini') return screenOn ? GEMINI_NOTICE_VERSIONS[0] : GEMINI_NOTICE_VERSIONS[1];
+  return screenOn ? 'notice-draft-2026-11-04.3' : 'notice-draft-2026-10-19.2';
+}
+
+export const NOTICE_VERSION = noticeVersion(AI_PROVIDER, SAFETY_SCREEN_ON);
+
+export function aiNotice(provider: 'gemini' | 'anthropic', screenOn: boolean): string {
+  const who = provider === 'gemini' ? 'Google (its Gemini AI), our AI provider,' : 'Anthropic, our AI provider,';
+  return screenOn
+    ? `If you allow it, these go to ${who} which may process them outside India: every coach message that the app's own safety word list does not already catch, first to an automatic safety check and then, with a short summary of your plan, to word the coach's reply (never your name or email); and meal photos you choose to send so it can name the foods. Messages the word list catches never go to the AI. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.`
+    : `If you allow it, two things go to ${who} which may process them outside India: a short summary of your plan to word coach replies (never your name or email), and meal photos you choose to send so it can name the foods. Photos are deleted from the app after reading and we do not store them. It is off unless you turn it on; plans, workouts, food logging and safety all work without it.`;
+}
+
+/** The AI paragraph of the notice, shown in Settings and before the first photo. It names the provider, and the safety check only in builds that have it. */
+export const AI_NOTICE = aiNotice(AI_PROVIDER, SAFETY_SCREEN_ON);
+
+/** Whether the notice the user agreed to named this build's AI provider. Older notices all named Anthropic. */
+export function noticeNamesProvider(version: string | undefined, provider: 'gemini' | 'anthropic' = AI_PROVIDER): boolean {
+  const gemini = (GEMINI_NOTICE_VERSIONS as readonly string[]).includes(version ?? '');
+  return provider === 'gemini' ? gemini : !gemini;
+}
+
+/**
+ * AI is on only if the user allowed it under a notice naming the current provider (plan/15 section 4:
+ * a new notice asks again). After the switch to Google, a user who agreed to the Anthropic notice gets
+ * no AI calls until they turn it on again in Settings; the word list and the rules still run.
+ */
+export function aiConsentCurrent(c: { aiProcessing: boolean; version: string } | undefined, provider: 'gemini' | 'anthropic' = AI_PROVIDER): boolean {
+  return !!c?.aiProcessing && noticeNamesProvider(c.version, provider);
+}
 
 export interface Profile {
   birthYear: number;

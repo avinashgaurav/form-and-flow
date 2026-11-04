@@ -1,5 +1,5 @@
 import { coachTurn, shortenSession, substitutes, type CoachContext, type CoachReply, type ModelCall, type SafetyScreen } from '@ff/engines';
-import type { AppState } from '../store/types';
+import { aiConsentCurrent, type AppState } from '../store/types';
 import { numericMode, nutritionFacts } from './food';
 import { currentPlan, effectiveSession, plannedFor, todayIndex } from './plan';
 
@@ -41,7 +41,7 @@ export function setRemoteModel(m: ModelCall | undefined, screen: SafetyScreen | 
 }
 
 export function ask(state: AppState, message: string, previousCoachText?: string): Promise<CoachReply> {
-  return coachTurn(message, coachContext(state), { aiAllowed: !!state.consents?.aiProcessing, model: remoteModel, screen: remoteScreen, previousCoachText });
+  return coachTurn(message, coachContext(state), { aiAllowed: aiConsentCurrent(state.consents), model: remoteModel, screen: remoteScreen, previousCoachText });
 }
 
 /** Turn a confirmed shorten action into the same session patch the Today screen uses. */
