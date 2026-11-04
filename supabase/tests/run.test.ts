@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { CALLS_PER_HOUR, SCREEN_CALLS_PER_HOUR, SCREEN_TOKENS_PER_DAY, startRun, TOKENS_PER_DAY } from '../functions/_shared/run.ts';
+import { CALLS_PER_HOUR, SCREEN_CALLS_PER_DAY, SCREEN_CALLS_PER_HOUR, startRun, TOKENS_PER_DAY } from '../functions/_shared/run.ts';
 
 type Row = Record<string, unknown>;
 
@@ -196,9 +196,9 @@ test('a full coach hour does not block the safety screen', async () => {
   assert.equal(db.tables.model_runs!.filter((r) => r.purpose === 'safety_screen').length, 1);
 });
 
-test('the safety screen has its own daily token cap', async () => {
+test('the safety screen has its own daily call cap', async () => {
   const { db, ctx } = setup();
-  db.tables.model_runs!.push({ user_id: USER.id, purpose: 'safety_screen', created_at: ago(5 * 3_600_000), stop_reason: 'end_turn', input_tokens: SCREEN_TOKENS_PER_DAY, output_tokens: 1 });
+  for (let i = 0; i < SCREEN_CALLS_PER_DAY; i++) db.tables.model_runs!.push({ user_id: USER.id, purpose: 'safety_screen', created_at: ago(5 * 3_600_000), stop_reason: 'end_turn', input_tokens: 400, output_tokens: 20 });
   assert.equal(await code(await startRun(ctx, 'safety_screen', 'm', 'v')), 'RATE_LIMITED');
   assert.ok(!((await startRun(ctx, 'coach_turn', 'm', 'v')) instanceof Response));
 });

@@ -56,7 +56,7 @@ Copy `app/.env.example` to `app/.env` and fill in the project URL and anon (publ
 | AI safety screen | `functions/safety-screen` calls Claude Haiku | Needs backup sign-in and AI consent. Gets only the message text of messages the phone's word list did not catch; returns one category; the message is not stored. Any error means the phone shows the fixed safe reply |
 | Coach wording | `functions/coach` calls Claude | Needs backup sign-in and AI consent; server builds its own prompt; only after the safety screen answered "none" |
 | Meal photos | `functions/meal-photo` calls Claude vision | Returns only a bounded food list; the photo is never stored; the phone's engine counts calories |
-| Limits | `functions/_shared/run.ts` | Coach and photos share 30 model calls an hour and 200,000 tokens a day per user. The safety screen has its own 60 calls an hour and 200,000 tokens a day, so it never uses up the coach's |
+| Limits | `functions/_shared/run.ts` | Coach and photos share 30 model calls an hour and 200,000 tokens a day per user. The safety screen has its own 60 calls an hour and 400 calls a day, so it never uses up the coach's |
 | Export and deletion | `functions/privacy` | Deletion needs a sign-in in the last 15 minutes |
 | Security log | `security_log`, hashed user ID, no content | Kept 1 year after deletion (DPDP R-05, counsel to confirm) |
 

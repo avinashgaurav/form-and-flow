@@ -251,3 +251,32 @@ test('cutting or burning yourself on gym kit asks first instead of assuming', ()
 test('Devanagari spellings with and without nukta or chandrabindu match alike', () => {
   for (const t of ['ख़ुदकुशी के ख़याल', 'खुदकुशी के खयाल', 'साँस नहीं आ रही', 'सांस नही आ रही']) assert.notEqual(classifyText(t).kind, 'none', t);
 });
+
+// From code review: everyday wordings that must not get a confirmed crisis or emergency reply.
+for (const t of [
+  'tired of living on salads',
+  'tired of life admin',
+  "can't go on any more reps",
+  'overdose of protein is a myth?',
+  'I fast for 2 days a week, 5:2 style',
+  'no food after 8pm for 30 days',
+]) {
+  test(`review lookalike stays out: ${t}`, () => assert.equal(classifyText(t).kind, 'none', JSON.stringify(classifyText(t))));
+}
+
+test('chest, jaw or heart-attack talk with a training or chewing cause asks first, still as a red flag', () => {
+  for (const t of ['chest is heavy after pushups', 'chest hurts from flys', 'jaw ache from clenching', 'jaw hurts after chewing gum', 'heart attack workout today']) {
+    assert.deepEqual([classifyText(t).kind, classifyText(t).confidence], ['red_flag', 'needs_confirm'], t);
+  }
+  // Without that cause, or with any other symptom, it stays a confirmed red flag.
+  for (const t of ['my chest is heavy', 'jaw aching and I am sweating after the run', 'jaw aching and sweating a lot after the workout', 'chest is heavy and I feel dizzy after pushups', 'chest hurts and my left arm is numb during the workout', 'I think I am having a heart attack']) {
+    assert.deepEqual([classifyText(t).kind, classifyText(t).confidence], ['red_flag', 'confirmed'], t);
+  }
+});
+
+test('cutting or burning yourself in the kitchen asks first instead of assuming', () => {
+  for (const t of ['I cut myself cooking', 'I burned myself on the stove']) {
+    assert.deepEqual([classifyText(t).kind, classifyText(t).confidence], ['crisis', 'needs_confirm'], t);
+  }
+  assert.deepEqual([classifyText('I want to overdose').kind, classifyText('I want to overdose').confidence], ['crisis', 'confirmed']);
+});

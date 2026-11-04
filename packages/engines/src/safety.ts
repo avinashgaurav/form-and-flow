@@ -9,7 +9,7 @@
  * The patterns describe shapes, not single sentences: a wish not to live or wake up, others being
  * better off without me, cutting or burning myself, symptoms such as jaw or one-sided numbness, and
  * days without food to get lighter. Gym slang ("killing it", "dying after leg day", "the death of me")
- * and festival fasting must stay out. A second, AI layer (coach/screen.ts) catches what this list misses
+ * and festival fasting must stay out. A second, AI layer (coach/screen-prompt.ts) catches what this list misses
  * when the user has allowed AI; it can only send more messages to the fixed safe replies, never fewer.
  */
 
@@ -99,6 +99,18 @@ const RED_FLAG = compile([
   /बोल नहीं? पा/,
 ]);
 
+/**
+ * A few red-flag wordings are also everyday gym talk ("chest is heavy after pushups", "jaw ache from
+ * clenching", "heart attack workout"). When every red-flag match is one of these and the message gives
+ * a training or chewing cause, the coach asks one question ("are you having chest pain ... right now?")
+ * instead of assuming. Nothing is dropped: it is still a red flag and never reaches any AI.
+ */
+const SORENESS_PRONE = /^(chest\b|jaw\b|heart attack|(pain|ache|aching|pressure|tightness) (in|on) (my |the )?jaw)/;
+const SORENESS_CONTEXT = /\b(after|from|since|post|during|because of|due to) (\w+ ){0,2}(push ?ups?|bench|press(es)?|fly|flys|flies|dips|chest day|workouts?|training|gym|lifting|session|sets?|yesterday|clenching|chewing|gum)\b|\b(workout|finisher|session|leg day|chest day)\b/;
+
+/** Any of these alongside chest or jaw pain keeps it a confirmed red flag, whatever the cause given. */
+const OTHER_SYMPTOM = /sweat|clammy|nause|breath|dizz|faint|numb|tingl|arm|neck|spread|radiat|vomit|chakkar|paseen|pasin/;
+
 const CRISIS = compile([
   /\b(kill|hurt|harm) (myself|me)\b/,
   // Other verb forms only with "myself": "my knee is hurting me" is an injury, not a crisis.
@@ -121,8 +133,8 @@ const CRISIS = compile([
   /\b(a|such a|just a) burden (to|on|for) (everyone|everybody|my family|them|people|others|all of them)\b/,
   /\b(no|nothing|not any) (reason|point) (to|in) (live|living|go on|going on|being alive|being here)\b/,
   /\bnothing (left )?to live for\b/,
-  /\b(tired|sick) of (living|being alive|life|existing)\b/,
-  /\bcan'?t go on (any ?more|like this|living)\b/,
+  /\b(tired|sick) of (living(?! (on|off|in|with|out of))|being alive|life(?! admin)|existing)\b/,
+  /\bcan'?t go on (any ?more|like this|living)\b(?! (reps?|sets?|with|on|in|at|for|form|squats?|runs?|cardio))/,
   /\bnot (be|being) (here|around|alive) (any ?more|much longer|for long)\b/,
   /\bthoughts? (of|about) (dying|death|ending it|killing|hurting|harming)\b/,
   // Self-harm in everyday words. "Cutting my arm day short" and "burn myself out" stay out.
@@ -131,7 +143,7 @@ const CRISIS = compile([
   /\bcut (my|both|both my) (arms|wrists?|thighs|skin)\b(?! (day|days|workout|session|training|routine|exercises?|volume|short|fat))/,
   /\bhang(ing)? myself\b/,
   /\bunalive\w*/,
-  /\boverdos(e|ed|ing)\b/,
+  /\boverdos(e|ed|ing)\b(?! (of|on) (protein|caffeine|coffee|pre ?workout|creatine|sugar|carbs|whey|cardio|training))/,
   /\b(take|took|taking|swallow\w*) (all|a lot of|a bunch of|too many|lots of|a whole (bottle|strip|pack) of) (my |the )?(pills|tablets|sleeping pills|medicines?|meds)\b/,
   /\bjump(ing)? (off|from) (a|the|my) (bridge|building|roof|terrace|balcony)\b/,
   // Hinglish
@@ -183,6 +195,8 @@ const RELIGIOUS_FAST = new RegExp(
   ),
 );
 
+/** A weekly schedule ("2 days a week", "5:2") is intermittent fasting, not a multi-day fast. */
+const WEEKLY_SCHEDULE = /\b(a|per|every|each) week\b|\b5 2\b|\bintermittent\b/;
 const FASTING_DAYS = /\b(fast|fasting|fasted|water fast\w*)( \w+){0,3} (for )?(\d+|two|three|four|five|six|seven|several|a few|couple of|a couple of) (days|weeks)\b/;
 
 const ED_SIGNAL = compile([
@@ -196,7 +210,7 @@ const ED_SIGNAL = compile([
   /\b(hate|disgusted by) (my body|myself|how i look)\b/,
   /\b(anorexi\w*|bulimi\w*|pro ?ana|thinspo\w*|meanspo|binge and purge|diet pills?|appetite suppressants?|chew and spit)\b/,
   // Days without food, whatever the reason given.
-  /\b(haven'?t|have not|hadn'?t|had not|didn'?t|did not|not|without|stopped|no)(?!.{0,24}\b(junk|sugar|sugary|fried|outside|processed|fast food|maida|sweets|meat|non ?veg|chicken|eggs?)\b)( \w+){0,3} (eaten|eating|eat|food)( \w+){0,3} (for|in) (\d+|two|three|four|five|six|seven|several|a few|many|couple of|a couple of) (days|weeks)\b/,
+  /\b(haven'?t|have not|hadn'?t|had not|didn'?t|did not|not|without|stopped|no)(?!.{0,24}\b(junk|sugar|sugary|fried|outside|processed|fast food|maida|sweets|meat|non ?veg|chicken|eggs?|after|before|past|late)\b)( \w+){0,3} (eaten|eating|eat|food)( \w+){0,3} (for|in) (\d+|two|three|four|five|six|seven|several|a few|many|couple of|a couple of) (days|weeks)\b/,
   /\b(eat|eating|ate) (nothing|almost nothing|next to nothing)\b(?! (but|else|after|before|fried|sugary|junk))/,
   /\bonly (drink|drinking|drank|have|having|had) (water|black coffee|green tea|lemon water)( \w+){0,3} (all day|for (\d+|two|three|a few|several) days|every day|daily)\b/,
   // Hinglish
@@ -217,7 +231,7 @@ const OUT_OF_SCOPE: RegExp[] = [
 
 // "Hurting myself on deadlifts" is usually a training injury. Still treated as a crisis, but the coach
 // asks one question (with the helpline) instead of assuming. Recall is kept: nothing is dropped.
-const TRAINING_CONTEXT = /\b(hurt|hurting|hurts|harm|harming|harmed|cut|cutting|burned|burnt) myself (on|during|while|doing|lifting|in|at|with) (the |a |my |heavy |those |these )?(deadlifts?|squats?|bench|press(es)?|lifts?|lifting|gym|workouts?|training|runs?|running|exercises?|sets?|reps?|pull ?ups?|push ?ups?|lunges?|rows?|cardio|yoga|class|barbell|bar|knurling|plates?|kettlebell|dumbbells?|machine)\b/;
+const TRAINING_CONTEXT = /\b(hurt|hurting|hurts|harm|harming|harmed|cut|cutting|burned|burnt) myself (on|during|while|doing|lifting|in|at|with) (the |a |my |heavy |those |these )?(deadlifts?|squats?|bench|press(es)?|lifts?|lifting|gym|workouts?|training|runs?|running|exercises?|sets?|reps?|pull ?ups?|push ?ups?|lunges?|rows?|cardio|yoga|class|barbell|bar|knurling|plates?|kettlebell|dumbbells?|machine|cooking|kitchen|knife|chopping|stove|pan|iron|shaving|razor)\b|\b(cut|cutting|burned|burnt) myself (cooking|chopping|shaving)\b/;
 const ONLY_HURT_HARM = /^(hurt|hurting|hurts|harm|harming|harmed|cut|cutting|burned|burnt) (myself|me)$/;
 
 const NEGATION = /\b(no|not|never|without|nahi|nhi|koi nahi)\b|नहीं?/;
@@ -257,7 +271,7 @@ function restrictionSignal(text: string): string | null {
   const restrict = text.match(RESTRICTING);
   if (restrict && intent) return restrict[0];
   const fast = text.match(FASTING_DAYS);
-  if (fast && (intent || !RELIGIOUS_FAST.test(text))) return fast[0];
+  if (fast && !WEEKLY_SCHEDULE.test(text) && (intent || !RELIGIOUS_FAST.test(text))) return fast[0];
   return null;
 }
 
@@ -276,7 +290,8 @@ export function classifyText(raw: string): SafetyResult {
       const before = text.slice(Math.max(0, idx - 24), idx);
       return NEGATION.test(before);
     });
-    return { kind: 'red_flag', confidence: negated ? 'needs_confirm' : 'confirmed', matched: red };
+    const soreness = SORENESS_CONTEXT.test(text) && !OTHER_SYMPTOM.test(text) && red.every((m) => SORENESS_PRONE.test(m));
+    return { kind: 'red_flag', confidence: negated || soreness ? 'needs_confirm' : 'confirmed', matched: red };
   }
 
   const ed = matches(text, ED_SIGNAL);

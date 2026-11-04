@@ -402,7 +402,9 @@ export async function coachTurn(
   }
 
   // Second layer, only with AI consent, and before any rules answer or coach reply. With a model but
-  // no screen wired up, fail closed rather than answer unscreened.
+  // no screen wired up, fail closed rather than answer unscreened. Without a model (no consent, or
+  // consent but signed out) no AI is reachable at all: only the word list runs, then the rules, as
+  // before this layer existed. The phone enforces this order; the coach function does not re-check it.
   const ai = opts.aiAllowed && !!opts.model;
   if (ai) {
     const screened = opts.screen ? await runSafetyScreen(opts.screen, message, opts.screenTimeoutMs) : { category: 'unsure' as const, problem: 'safety screen: not configured' };
