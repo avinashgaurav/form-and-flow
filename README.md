@@ -32,7 +32,7 @@ Settings covers setup, safety limits, reminders, the AI model choice, food prefe
 ## How it works
 
 - **Code decides every number.** Plans, progression, safety screening and nutrition maths live in `@ff/engines` (pure TypeScript, tested). The AI only words coach replies and names foods in photos; the app checks every number the AI writes.
-- **Safety first.** Red-flag symptoms, crisis messages and eating-disorder signals get fixed responses, never AI. Plate-guidance mode hides every calorie number.
+- **Safety first.** Red-flag symptoms, crisis messages and eating-disorder signals that the safety word list recognises get fixed responses, never AI. A test on new wordings found the list recognised only 1 of 14 such messages (see EVALS.md); a fix is in progress. Plate-guidance mode hides every calorie number.
 - **Local first.** Everything works on the phone. Backup to Supabase is optional and mirrors the phone, with row-level security on every table.
 - **Food data.** Ingredient values come from USDA FoodData Central (SR Legacy, public domain); paneer and poha, Indian dish recipes and household portion sizes are our estimates, still under review.
 
