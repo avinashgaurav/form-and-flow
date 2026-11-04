@@ -40,6 +40,32 @@ export const PROFILES: Record<string, Profile> = {
     restrictions: [],
     sessionsDone: 2,
   },
+  // New users for the second, untuned case set (cases-new.jsonl). Different goals, bodies,
+  // equipment and restrictions from p1 to p3; none of them was used while fixing the code.
+  // Home strength beginner with a shoulder limit, numeric nutrition.
+  q1: {
+    tone: 'data',
+    training: { goal: 'strength', experience: 'lt6m', location: 'home', equipment: ['kettlebell', 'bands'], daysAvailable: [1, 4], sessionMinutes: 30 },
+    body: { sex: 'female', ageYears: 47, heightCm: 155, weightKg: 61, activity: 'low', resistanceTraining: true },
+    restrictions: [{ code: 'region:shoulder', source: 'pain_report' }],
+    sessionsDone: 0,
+  },
+  // Experienced gym user losing fat, lower-back limit and a protein cap from the safety answers.
+  q2: {
+    tone: 'gentle',
+    training: { goal: 'fat_loss', experience: 'gt2y', location: 'gym', equipment: ['barbell', 'rack', 'bench', 'dumbbells', 'cable', 'machines'], daysAvailable: [0, 1, 2, 3, 4], sessionMinutes: 50 },
+    body: { sex: 'male', ageYears: 23, heightCm: 182, weightKg: 96, activity: 'high', resistanceTraining: true },
+    restrictions: [{ code: 'region:lower_back', source: 'pain_report' }, { code: 'no_high_protein', source: 'assessment' }],
+    sessionsDone: 3,
+  },
+  // Older user building habits at home with bands, moderate intensity cap, plate guidance.
+  q3: {
+    tone: 'direct',
+    training: { goal: 'habits', experience: 'none', location: 'both', equipment: ['bands', 'machines'], daysAvailable: [2, 5], sessionMinutes: 20 },
+    body: { sex: 'prefer_not_to_say', ageYears: 63, heightCm: 166, weightKg: 70, activity: 'light', preferNonNumeric: true, resistanceTraining: false },
+    restrictions: [{ code: 'intensity_cap_moderate', source: 'assessment' }],
+    sessionsDone: 1,
+  },
 };
 
 /** Same mapping as nutritionFacts() in app/src/lib/food.ts. */
