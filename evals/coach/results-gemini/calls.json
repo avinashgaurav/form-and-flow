@@ -1,0 +1,149 @@
+{
+  "fresh": {
+    "full_pipeline_screen": {
+      "calls": 78,
+      "models_reported": {
+        "gemini-3.5-flash-lite": 78
+      },
+      "calls_without_model_report": 0,
+      "failed_after_all_attempts": [],
+      "needed_more_than_one_attempt": 0,
+      "first_attempt_failures": [],
+      "answered_ms": {
+        "min": 616,
+        "median": 981,
+        "p90": 1930,
+        "max": 8751
+      },
+      "tokens": {
+        "input": 30528,
+        "output": 765
+      },
+      "estimated_cost_usd": 0.0111,
+      "over_app_model_limit_ms": 4000,
+      "answered_but_over_app_limit": 4,
+      "app_would_fail_closed": 4
+    },
+    "full_pipeline_coach": null,
+    "screen_only": {
+      "calls": 120,
+      "models_reported": {
+        "gemini-3.5-flash-lite": 120
+      },
+      "calls_without_model_report": 0,
+      "failed_after_all_attempts": [],
+      "needed_more_than_one_attempt": 0,
+      "first_attempt_failures": [],
+      "answered_ms": {
+        "min": 656,
+        "median": 1265,
+        "p90": 5149,
+        "max": 7731
+      },
+      "tokens": {
+        "input": 46980,
+        "output": 1209
+      },
+      "estimated_cost_usd": 0.0171,
+      "over_app_model_limit_ms": 4000,
+      "answered_but_over_app_limit": 24,
+      "app_would_fail_closed": 24
+    }
+  },
+  "new": {
+    "full_pipeline_screen": {
+      "calls": 78,
+      "models_reported": {
+        "gemini-3.5-flash-lite": 78
+      },
+      "calls_without_model_report": 0,
+      "failed_after_all_attempts": [],
+      "needed_more_than_one_attempt": 0,
+      "first_attempt_failures": [],
+      "answered_ms": {
+        "min": 670,
+        "median": 3394,
+        "p90": 7384,
+        "max": 9536
+      },
+      "tokens": {
+        "input": 30102,
+        "output": 742
+      },
+      "estimated_cost_usd": 0.0109,
+      "over_app_model_limit_ms": 4000,
+      "answered_but_over_app_limit": 31,
+      "app_would_fail_closed": 31
+    },
+    "full_pipeline_coach": {
+      "calls": 57,
+      "models_reported": {
+        "gemini-3.5-flash-lite": 57
+      },
+      "calls_without_model_report": 0,
+      "failed_after_all_attempts": [],
+      "needed_more_than_one_attempt": 0,
+      "first_attempt_failures": [],
+      "answered_ms": {
+        "min": 907,
+        "median": 4015,
+        "p90": 6485,
+        "max": 10613
+      },
+      "tokens": {
+        "input": 31023,
+        "output": 6337
+      },
+      "estimated_cost_usd": 0.0251
+    }
+  },
+  "original": {
+    "full_pipeline_screen": {
+      "calls": 40,
+      "models_reported": {
+        "gemini-3.5-flash-lite": 40
+      },
+      "calls_without_model_report": 0,
+      "failed_after_all_attempts": [],
+      "needed_more_than_one_attempt": 0,
+      "first_attempt_failures": [],
+      "answered_ms": {
+        "min": 603,
+        "median": 2165,
+        "p90": 9488,
+        "max": 10419
+      },
+      "tokens": {
+        "input": 15448,
+        "output": 401
+      },
+      "estimated_cost_usd": 0.0056,
+      "over_app_model_limit_ms": 4000,
+      "answered_but_over_app_limit": 15,
+      "app_would_fail_closed": 15
+    },
+    "full_pipeline_coach": {
+      "calls": 34,
+      "models_reported": {
+        "gemini-3.5-flash-lite": 34
+      },
+      "calls_without_model_report": 0,
+      "failed_after_all_attempts": [],
+      "needed_more_than_one_attempt": 0,
+      "first_attempt_failures": [],
+      "answered_ms": {
+        "min": 961,
+        "median": 3224,
+        "p90": 9209,
+        "max": 13574
+      },
+      "tokens": {
+        "input": 19210,
+        "output": 3650
+      },
+      "estimated_cost_usd": 0.0149
+    }
+  },
+  "estimated_cost_usd_all": 0.0847,
+  "note": "Costs are estimates: token counts reported by the API times the published paid-tier prices in gemini.ts. The calls ran on the free tier, which is not billed."
+}

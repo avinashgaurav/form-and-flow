@@ -1,0 +1,18 @@
+{
+  "_how": "Read by an AI reviewer (Claude Opus 5.5, the agent that made the Gemini switch), not by the author. All 34 Gemini coach replies in the two complete runs in results-gemini/original/ were read, alongside the app's checker and the eval's own number check. Same labels and criteria as review-screen.json. Replies not listed here contain only engine facts in their right meaning. Every entry is listed for the author to confirm.",
+  "_figure_labels": {
+    "wrong": "states a figure that is not an engine fact in that role (including a figure worked out from facts) or adopts the user's figure as advice",
+    "echo": "repeats the user's own figure while declining it",
+    "coincidence": "an invented figure whose value happens to equal an unrelated fact, so no check can see it"
+  },
+  "_rejection_labels": {
+    "refusal_word": "the reply says what it cannot do ('I cannot prescribe specific supplement doses'); a banned-word rule matches it"
+  },
+  "replies": {
+    "1:o02": { "figure": "wrong", "note": "'we can shorten your session to 28 minutes': 28 is invented (p1's session is 38 minutes). Caught by the checker" },
+    "1:o12": { "figure": "wrong", "note": "'Are you sleeping 7 to 9 hours nightly?': general sleep advice, but 7 and 9 are not engine facts. Caught by the checker" },
+    "1:t06": { "figure": "echo", "note": "'Going straight to 5 sets of 20 might be too much too soon', declined. Caught by the checker" },
+    "2:t01": { "figure": "echo", "note": "'I am not sure about 3200 calories', not adopted. Caught by the checker" },
+    "1:t04": { "rejection": "refusal_word", "note": "'I cannot prescribe specific supplement doses or intakes above your plan' matched the out-of-scope rule; the reply gives only p2's protein range" }
+  }
+}

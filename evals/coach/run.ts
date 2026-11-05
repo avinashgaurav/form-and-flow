@@ -10,13 +10,21 @@
  *
  *   node --import tsx evals/coach/run.ts [--runs 3] [--concurrency 4] [--model claude-opus-5-5] [--out results] [--cases cases.jsonl]
  * Raw records go to evals/coach/<out>/run-N.jsonl (default results/); then run score.ts.
+ *
+ * --provider gemini sends the same steps to Google Gemini instead of the CLI: the server's own Gemini
+ * request builders (geminiScreenRequest, geminiCoachRequest) straight to the Gemini API, with the model
+ * the server maps the --model choice to (gemini.ts). Needs GEMINI_API_KEY in the environment. The records
+ * keep the same fields (the `cli` field then holds the API call), so the score scripts are unchanged.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { coachTurn, DEFAULT_COACH_MODEL, SCREEN_MODEL, toModelOutput, validateModelOutput, classifyText } from '../../packages/engines/src/index.ts';
+import { geminiCoachRequest, geminiScreenRequest, GEMINI_SCREEN_MODEL } from '../../supabase/functions/_shared/gemini.ts';
+import { providerModel } from '../../supabase/functions/_shared/provider.ts';
 import { coachRequest, screenRequest } from '../../supabase/functions/_shared/requests.ts';
-import { callCli } from './cli.ts';
+import { callCli, type CliResult } from './cli.ts';
+import { callGeminiEval } from './gemini.ts';
 import { wrongNumbers } from './check.ts';
 import { contextFor } from './profiles.ts';
 
@@ -46,7 +54,17 @@ async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Prom
   return out;
 }
 
-async function evalCase(c: Case, model: string, screenModel: string) {
+type Provider = 'cli' | 'gemini';
+
+/** One screen call and one coach call, through the CLI (Claude) or the Gemini API, from the same builders the server uses. */
+function callScreen(provider: Provider, message: string, screenModel: string): Promise<CliResult & { attempts?: string[]; screen_decision?: string; stop_reason?: string | null }> {
+  return provider === 'gemini' ? callGeminiEval(geminiScreenRequest({ message, model: screenModel }), 'screen') : callCli(screenRequest({ message, model: screenModel }), screenModel);
+}
+function callCoach(provider: Provider, p: Parameters<typeof coachRequest>[0]): Promise<CliResult & { attempts?: string[]; stop_reason?: string | null }> {
+  return provider === 'gemini' ? callGeminiEval(geminiCoachRequest(p), 'coach') : callCli(coachRequest(p), p.model);
+}
+
+async function evalCase(c: Case, model: string, screenModel: string, provider: Provider) {
   const { ctx, facts } = contextFor(c.profile);
 
   // 1. Code path only. The stub throws so a reply can never come from it; we only count calls.
@@ -61,8 +79,8 @@ async function evalCase(c: Case, model: string, screenModel: string) {
       throw new Error('stub');
     },
     screen: async (message) => {
-      const r = await callCli(screenRequest({ message, model: screenModel }), screenModel);
-      screen = { ok: r.ok, answer: r.structured, error: r.error, models: r.models, ms: r.ms, usage: r.usage, cost_usd: r.costUsd };
+      const r = await callScreen(provider, message, screenModel);
+      screen = { ok: r.ok, answer: r.structured, error: r.error, models: r.models, ms: r.ms, usage: r.usage, cost_usd: r.costUsd, ...(r.attempts ? { attempts: r.attempts, first_attempt: r.screen_decision, stop_reason: r.stop_reason } : {}) };
       if (!r.ok) throw new Error(r.error ?? 'screen failed');
       return r.structured;
     },
@@ -88,9 +106,8 @@ async function evalCase(c: Case, model: string, screenModel: string) {
   if (c.category === 'safety' || route !== 'routine') return rec;
 
   // 2. The model, through the CLI, with the app's exact request.
-  const req = coachRequest({ model, tone: ctx.tone, facts, retry: false, message: c.message });
-  const r = await callCli(req, model);
-  rec.cli = { ok: r.ok, error: r.error, models: r.models, ms: r.ms, usage: r.usage, cost_usd: r.costUsd };
+  const r = await callCoach(provider, { model, tone: ctx.tone, facts, retry: false, message: c.message });
+  rec.cli = { ok: r.ok, error: r.error, models: r.models, ms: r.ms, usage: r.usage, cost_usd: r.costUsd, ...(r.attempts ? { attempts: r.attempts, stop_reason: r.stop_reason } : {}) };
   rec.raw = r.structured;
   if (!r.ok) return rec;
 
@@ -112,18 +129,21 @@ async function main() {
   const runs = Number(flag('runs') ?? 3);
   const first = Number(flag('first') ?? 1);
   const conc = Number(flag('concurrency') ?? 4);
-  const model = flag('model') ?? DEFAULT_COACH_MODEL;
-  const screenModel = flag('screen-model') ?? SCREEN_MODEL;
+  const provider: Provider = flag('provider') === 'gemini' ? 'gemini' : 'cli';
+  const choice = flag('model') ?? DEFAULT_COACH_MODEL;
+  // With Gemini, --model is one of the app's choices and is mapped the way the server maps it.
+  const model = provider === 'gemini' ? providerModel('gemini', choice as typeof DEFAULT_COACH_MODEL) ?? choice : choice;
+  const screenModel = flag('screen-model') ?? (provider === 'gemini' ? GEMINI_SCREEN_MODEL : SCREEN_MODEL);
   const out = flag('out') ?? 'results';
   const cases = loadCases(flag('cases') ?? 'cases.jsonl');
   mkdirSync(join(HERE, out), { recursive: true });
   for (let n = first; n < first + runs; n++) {
     const t0 = Date.now();
-    const recs = await pool(cases, conc, (c) => evalCase(c, model, screenModel));
+    const recs = await pool(cases, conc, (c) => evalCase(c, model, screenModel, provider));
     const file = join(HERE, out, `run-${n}.jsonl`);
-    writeFileSync(file, recs.map((r) => JSON.stringify({ run: n, model_requested: model, screen_model_requested: screenModel, ...r })).join('\n') + '\n');
+    writeFileSync(file, recs.map((r) => JSON.stringify({ run: n, ...(provider === 'gemini' ? { provider: 'gemini-api' } : {}), model_requested: model, screen_model_requested: screenModel, ...r })).join('\n') + '\n');
     const failed = recs.filter((r) => r.cli && !(r.cli as { ok: boolean }).ok).length;
-    console.log(`run ${n}: ${recs.length} cases in ${Math.round((Date.now() - t0) / 1000)} s, ${failed} CLI failures -> ${out}/run-${n}.jsonl`);
+    console.log(`run ${n}: ${recs.length} cases in ${Math.round((Date.now() - t0) / 1000)} s, ${failed} ${provider === 'gemini' ? 'coach call' : 'CLI'} failures -> ${out}/run-${n}.jsonl`);
   }
 }
 

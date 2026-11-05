@@ -8,3 +8,11 @@
  * the live smoke test passes (supabase/SETUP.md).
  */
 export const SAFETY_SCREEN_ON = process.env.EXPO_PUBLIC_SAFETY_SCREEN === '1';
+
+/**
+ * EXPO_PUBLIC_AI_PROVIDER names the AI company in the privacy notice: gemini (Google, the default) or
+ * anthropic. It must match the server's AI_PROVIDER secret (supabase/SETUP.md), because the notice the
+ * user agrees to has to name the company that actually gets their messages.
+ */
+export const AI_PROVIDER: 'gemini' | 'anthropic' =
+  (process.env.EXPO_PUBLIC_AI_PROVIDER ?? '').trim().toLowerCase() === 'anthropic' ? 'anthropic' : 'gemini';

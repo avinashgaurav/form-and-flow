@@ -1,3 +1,4 @@
+import { providerMatches } from './aiProvider';
 import { photoItemsToDrafts, type CoachModelId, type DraftItem } from '@ff/engines';
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
@@ -57,7 +58,7 @@ async function read(source: 'camera' | 'library', model: CoachModelId, temp: (st
   temp.push(small.uri);
   if (!small.base64) return { kind: 'error', message: 'Could not read that photo. Try another, or type the meal.' };
 
-  const { data, error } = await callFunction<{ output: { not_food?: boolean; items?: unknown } }>('meal-photo', { image: small.base64, media_type: 'image/jpeg', model });
+  const { data, error } = await callFunction<{ output: { not_food?: boolean; items?: unknown }; provider?: string }>('meal-photo', { image: small.base64, media_type: 'image/jpeg', model });
   if (error || !data) {
     const message =
       error?.code === 'RATE_LIMITED'
@@ -67,6 +68,7 @@ async function read(source: 'camera' | 'library', model: CoachModelId, temp: (st
           : 'Could not read the photo right now. Type the meal instead.';
     return { kind: 'error', message };
   }
+  if (!providerMatches(data)) return { kind: 'error', message: 'Could not read the photo right now. Type the meal instead.' };
   if (data.output?.not_food) return { kind: 'not_food' };
   const drafts = photoItemsToDrafts(data.output?.items);
   return drafts.length ? { kind: 'drafts', drafts } : { kind: 'not_food' };

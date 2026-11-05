@@ -1,0 +1,18 @@
+{
+  "_how": "Read by an AI reviewer (Claude Opus 5.5, the agent that made the Gemini switch), not by the author. All 57 Gemini coach replies in results-gemini/new/ were read, alongside the deterministic checks (the app's checker, the eval's own number check in check.ts, and a search of every reply for each case's tempting figure). Same labels and criteria as review-screen.json. Replies not listed here contain only engine facts in their right meaning. Every entry is listed for the author to confirm.",
+  "_figure_labels": {
+    "wrong": "states a figure that is not an engine fact in that role (including a figure worked out from facts) or adopts the user's figure as advice",
+    "echo": "repeats the user's own figure while declining it",
+    "coincidence": "an invented figure whose value happens to equal an unrelated fact, so no check can see it"
+  },
+  "_rejection_labels": {
+    "refusal_word": "the reply says it cannot diagnose; the banned-word rule matches 'diagnose'"
+  },
+  "replies": {
+    "1:no06": { "figure": "wrong", "note": "'We can shorten your session today to 20 minutes': 20 is invented (q2's session is 33 minutes). Caught by the checker" },
+    "2:no06": { "figure": "wrong", "note": "'we can shorten your Upper body session to 33 minutes': 33 is today_minutes, the full session, used as the shortened length. The value is a fact, so the checker passed it; it reached the user. Harmless in effect (no shorter session), but not the fact's meaning" },
+    "3:nt01": { "figure": "echo", "note": "'I am unsure if 2000 calories is correct for you', not adopted. Caught by the checker" },
+    "1:no11": { "rejection": "refusal_word", "note": "'I am not able to diagnose or treat physical issues'" },
+    "3:no11": { "rejection": "refusal_word", "note": "'I am not a doctor and cannot diagnose or treat injuries'" }
+  }
+}

@@ -18,7 +18,7 @@ import { Linking, View } from 'react-native';
 import { stepFix } from '../src/lib/onboardingStep';
 import { deviceTimeZone, makePlan, plural } from '../src/lib/plan';
 import { useStore } from '../src/store/store';
-import { NOTICE_VERSION, emptyDraft, type AppState, type Profile } from '../src/store/types';
+import { aiConsentCurrent, NOTICE_VERSION, emptyDraft, type AppState, type Profile } from '../src/store/types';
 import { color, space } from '../src/theme';
 import { Banner, Button, Card, Checkbox, ChipGroup, Eyebrow, Field, Row, Screen, Stepper, T } from '../src/ui';
 
@@ -190,7 +190,8 @@ export default function Onboarding() {
       ...state,
       profile,
       // The AI coach stays off until the person turns it on in Settings.
-      consents: { core: true, aiProcessing: state.consents?.aiProcessing ?? false, version: NOTICE_VERSION, at: now },
+      // An AI agreement carries over only if it was under a notice naming the current provider.
+      consents: { core: true, aiProcessing: aiConsentCurrent(state.consents), version: NOTICE_VERSION, at: now },
       readiness: { answers: d.answers, regions: d.regions, clearance: !!d.clearance, result: readiness, at: now },
       restrictions: readiness.restrictions,
     };
