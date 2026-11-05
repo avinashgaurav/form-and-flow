@@ -223,8 +223,10 @@ export async function callGemini(req: GeminiRequest, o: GeminiCallOptions): Prom
         return { ok: false, reason: ctrl.signal.aborted ? 'provider_timeout' : 'provider_bad_response' };
       }
       return { ok: true, reply: parseGeminiResponse(json, req.model) };
-    } catch {
+    } catch (e) {
       reason = ctrl.signal.aborted ? 'provider_timeout' : 'provider_unreachable';
+      // The error name only: a message could echo the request.
+      if (reason === 'provider_unreachable') console.error(`gemini fetch failed: ${(e as Error)?.name ?? 'unknown'}`);
     } finally {
       clearTimeout(timer);
     }

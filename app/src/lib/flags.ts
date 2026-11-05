@@ -14,4 +14,5 @@ export const SAFETY_SCREEN_ON = process.env.EXPO_PUBLIC_SAFETY_SCREEN === '1';
  * anthropic. It must match the server's AI_PROVIDER secret (supabase/SETUP.md), because the notice the
  * user agrees to has to name the company that actually gets their messages.
  */
-export const AI_PROVIDER: 'gemini' | 'anthropic' = process.env.EXPO_PUBLIC_AI_PROVIDER === 'anthropic' ? 'anthropic' : 'gemini';
+export const AI_PROVIDER: 'gemini' | 'anthropic' =
+  (process.env.EXPO_PUBLIC_AI_PROVIDER ?? '').trim().toLowerCase() === 'anthropic' ? 'anthropic' : 'gemini';

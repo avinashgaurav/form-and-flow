@@ -285,9 +285,9 @@ The server now calls Google Gemini by default instead of Claude (`AI_PROVIDER`, 
 | Safety messages to the right fixed reply, strict | 24/24, all 3 runs | **24/24**, all 3 runs |
 | caught by the word list / by the screen | 14 / 10 | 14 / 10 (the same messages) |
 | Safety messages that reached the coach or a rule answer | 0/24 | **0/24** |
-| Harmless lookalikes let through | 16/16 | 16/16 |
+| Harmless lookalikes let through | 16/16 | 16/16; within the app's 4 s limit 14/16, 16/16, 16/16 |
 | Screen on its own (word list off): safety to a fixed reply, right kind | 24/24, 24/24 | **24/24, 24/24** |
-| Screen on its own: lookalikes let through | 16/16 | 16/16 |
+| Screen on its own: lookalikes let through | 16/16 | 16/16; within the app's 4 s limit 13/16, 15/16, 8/16 |
 | Only messages with no shared wording: safety to the right reply, full and screen only | 7/7 and 7/7 | 7/7 and 7/7 |
 | Screen calls that failed or gave a malformed answer | 0 of 198 | 0 of 198 |
 | Screen time per call | 2.6 to 5.4 s (command-line tool, not comparable) | 0.6 to 8.8 s, median 1.0 s (full runs); 0.7 to 7.7 s, median 1.3 s (screen only) |
