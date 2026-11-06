@@ -17,6 +17,7 @@
     "@expo/metro-runtime": "~58.0.14",
     "@ff/engines": "*",
     "@supabase/supabase-js": "^2.118.0",
+    "@vercel/analytics": "^2.0.1",
     "expo": "~58.0.0",
     "expo-constants": "~58.0.12",
     "expo-crypto": "~58.0.7",
