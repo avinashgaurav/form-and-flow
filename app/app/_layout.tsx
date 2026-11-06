@@ -6,20 +6,14 @@ import {
   BricolageGrotesque_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/bricolage-grotesque';
-import { inject } from '@vercel/analytics';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BackendSync } from '../src/lib/BackendSync';
 import { ReminderSync } from '../src/lib/ReminderSync';
 import { StoreProvider, useStore } from '../src/store/store';
 import { color } from '../src/theme';
-
-// Vercel Web Analytics runs on the web build only; native builds skip it.
-if (Platform.OS === 'web') {
-  inject();
-}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
